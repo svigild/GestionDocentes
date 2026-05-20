@@ -34,6 +34,16 @@ public class CsvDataLoader implements CommandLineRunner {
     @Autowired private HorarioRepository horarioRepo;
     @Autowired(required = false) private JavaMailSender mailSender;
 
+    @org.springframework.beans.factory.annotation.Value("${app.mail.from:no-reply@gestiondocentes.com}")
+    private String mailFrom;
+
+    @org.springframework.beans.factory.annotation.Value("${app.base-url:http://localhost:8080}")
+    private String baseUrl;
+
+    // Permite desactivar el envio masivo de emails al cargar el CSV inicial (datos de prueba)
+    @org.springframework.beans.factory.annotation.Value("${app.csv.send-emails:false}")
+    private boolean enviarEmailsCargaInicial;
+
     @Override
     public void run(String... args) throws Exception {
 
@@ -99,18 +109,22 @@ public class CsvDataLoader implements CommandLineRunner {
                         docenteRepo.save(d);
 
                         // Envío de email con credenciales al docente recién creado (requisito del enunciado:
-                        // "se le enviará un mail al profesorado con su nombre de usuario y una contraseña temporal")
-                        if (mailSender != null) {
+                        // "se le enviará un mail al profesorado con su nombre de usuario y una contraseña temporal").
+                        // Por defecto el envio en la carga inicial esta DESACTIVADO para no spamear los emails
+                        // de prueba del CSV; se activa con la variable de entorno app.csv.send-emails=true.
+                        if (mailSender != null && enviarEmailsCargaInicial) {
                             try {
                                 SimpleMailMessage msg = new SimpleMailMessage();
+                                msg.setFrom(mailFrom);
                                 msg.setTo(d.getEmail());
-                                msg.setSubject("Credenciales de Acceso - GestionApp");
-                                msg.setText("Estimado/a " + d.getNombre() + " " + d.getApellidos() + ",\n\n"
-                                        + "Se le han asignado las siguientes credenciales de acceso al sistema:\n\n"
+                                msg.setSubject("Credenciales de acceso — GestiónDocentes");
+                                msg.setText("Hola " + d.getNombre() + " " + d.getApellidos() + ",\n\n"
+                                        + "Se ha creado una cuenta para usted en GestiónDocentes.\n\n"
                                         + "Usuario: " + d.getEmail() + "\n"
                                         + "Contraseña temporal: 1234\n\n"
-                                        + "IMPORTANTE: Deberá cambiar esta contraseña la primera vez que acceda al sistema.\n\n"
-                                        + "Un saludo,\nEquipo Directivo");
+                                        + "IMPORTANTE: La primera vez que acceda, el sistema le pedirá que cambie esta contraseña.\n\n"
+                                        + "Acceda en: " + baseUrl + "/login\n\n"
+                                        + "Un saludo,\nEquipo de GestiónDocentes");
                                 mailSender.send(msg);
                             } catch (Exception emailEx) {
                                 log.warn("No se pudo enviar email a {}: {}", d.getEmail(), emailEx.getMessage());

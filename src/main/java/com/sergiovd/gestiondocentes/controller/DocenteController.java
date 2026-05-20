@@ -61,6 +61,13 @@ public class DocenteController {
     @Value("${app.config.max-permisos-diarios:3}")
     private int MAX_PERMISOS_DIARIOS;
 
+    // Direccion remitente y URL publica usadas en los emails que envia la aplicacion.
+    @Value("${app.mail.from:no-reply@gestiondocentes.com}")
+    private String mailFrom;
+
+    @Value("${app.base-url:http://localhost:8080}")
+    private String baseUrl;
+
     // --- PRIMER ACCESO: cambio de contraseña obligatorio ---
     // Muestro un formulario sencillo para que el docente recién creado cambie su contraseña temporal.
     // Como ya está autenticado por sesión, no necesito ni token ni email.
@@ -373,12 +380,20 @@ public class DocenteController {
             if (mailSender != null) {
                 try {
                     SimpleMailMessage msg = new SimpleMailMessage();
+                    msg.setFrom(mailFrom);
                     msg.setTo(ap.getDocente().getEmail());
-                    msg.setSubject("Resolución Solicitud Asuntos Propios");
-                    msg.setText(estado ? "Su solicitud ha sido APROBADA." : "Su solicitud ha sido DENEGADA.");
+                    msg.setSubject("Resolución de su solicitud de asuntos propios — GestiónDocentes");
+                    String cuerpo = "Hola " + ap.getDocente().getNombre() + ",\n\n"
+                            + "Su solicitud de día de asuntos propios para el "
+                            + ap.getDiaSolicitado()
+                            + " ha sido " + (estado ? "APROBADA" : "DENEGADA") + ".\n\n"
+                            + "Puede consultar el detalle accediendo a: " + baseUrl + "/\n\n"
+                            + "Un saludo,\nEquipo de GestiónDocentes";
+                    msg.setText(cuerpo);
                     mailSender.send(msg);
+                    log.info("Notificación de {} enviada a {}", estado ? "aprobación" : "rechazo", ap.getDocente().getEmail());
                 } catch (Exception e) {
-                    log.warn("Fallo al enviar email de notificación: {}", e.getMessage());
+                    log.warn("Fallo al enviar email de notificación a {}: {}", ap.getDocente().getEmail(), e.getMessage());
                 }
             }
         }
@@ -599,9 +614,16 @@ public class DocenteController {
         if (mailSender != null) {
             try {
                 SimpleMailMessage msg = new SimpleMailMessage();
+                msg.setFrom(mailFrom);
                 msg.setTo(docente.getEmail());
-                msg.setSubject("Credenciales de Acceso");
-                msg.setText("Usuario: " + docente.getEmail() + "\nContraseña: " + passTemporal);
+                msg.setSubject("Credenciales de acceso — GestiónDocentes");
+                msg.setText("Hola " + docente.getNombre() + " " + docente.getApellidos() + ",\n\n"
+                        + "Se ha creado una cuenta para usted en GestiónDocentes.\n\n"
+                        + "Usuario: " + docente.getEmail() + "\n"
+                        + "Contraseña temporal: " + passTemporal + "\n\n"
+                        + "IMPORTANTE: La primera vez que acceda, el sistema le pedirá que cambie esta contraseña.\n\n"
+                        + "Acceda en: " + baseUrl + "/login\n\n"
+                        + "Un saludo,\nEquipo de GestiónDocentes");
                 mailSender.send(msg);
             } catch (Exception e) {
                 log.warn("Error enviando email de credenciales: {}", e.getMessage());
