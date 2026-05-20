@@ -4,6 +4,7 @@ import com.sergiovd.gestiondocentes.model.Docente;
 import com.sergiovd.gestiondocentes.model.PasswordResetToken;
 import com.sergiovd.gestiondocentes.repository.DocenteRepository;
 import com.sergiovd.gestiondocentes.repository.TokenRepository;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
@@ -51,6 +52,7 @@ public class AuthController {
 
     // Proceso la solicitud de recuperación. Busco al usuario y, si existe, genero un token seguro.
     @PostMapping("/auth/forgot-password")
+    @Transactional
     public String processForgotPassword(@RequestParam("email") String email, Model model) {
         Docente docente = docenteRepo.findDocenteByEmail(email).orElse(null);
 
@@ -58,6 +60,11 @@ public class AuthController {
             model.addAttribute("error", "No existe ninguna cuenta con ese email.");
             return "auth/forgot-password";
         }
+
+        // Borro cualquier token previo de este docente para evitar la unique constraint sobre docente_id.
+        // De este modo cada solicitud de recuperación reemplaza siempre la anterior.
+        tokenRepo.deleteByDocente(docente);
+        tokenRepo.flush();
 
         // Genero un UUID aleatorio para usarlo como token de un solo uso
         String token = UUID.randomUUID().toString();
