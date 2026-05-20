@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/auth-layout :: layout(~{::.auth-card})}">
+<head>
+  <title>Cambio de Contraseña Obligatorio</title>
+</head>
+<body>
+
+<div class="card auth-card text-center">
+  <div class="card-body p-0">
+    <div class="d-flex justify-content-center align-items-center gap-3 mb-4">
+      <img src="/logo-principado.png" alt="Logo Principado" class="auth-logo" style="max-height: 40px;">
+      <div style="border-left: 1px solid #ccc; height: 30px;"></div>
+      <img src="/logo-principado.png" alt="Logo Educastur" class="auth-logo" style="max-height: 40px;">
+    </div>
+
+    <h3 class="auth-title mb-3" style="font-size: 1.6rem;">Cambio de contraseña obligatorio</h3>
+    <p class="text-muted mb-4" style="font-size: 0.95rem;">
+      Es la primera vez que accedes al sistema. Por seguridad, debes establecer
+      una nueva contraseña antes de poder usar la aplicación.
+    </p>
+
+    <div th:if="${error}" class="alert alert-danger text-start mb-3" role="alert" th:text="${error}"></div>
+
+    <form th:action="@{/web/primer-acceso}" method="post">
+      <div class="mb-3 text-start">
+        <label for="password" class="form-label fw-bold small text-uppercase text-muted ms-1">Nueva contraseña</label>
+        <input type="password" class="form-control" id="password" name="password"
+               placeholder="Mínimo 4 caracteres" required minlength="4" autofocus>
+      </div>
+
+      <div class="mb-4 text-start">
+        <label for="password2" class="form-label fw-bold small text-uppercase text-muted ms-1">Repite la contraseña</label>
+        <input type="password" class="form-control" id="password2" name="password2"
+               placeholder="Confirma la nueva contraseña" required minlength="4">
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100">Guardar y continuar</button>
+    </form>
+
+  </div>
+</div>
+
+</body>
+</html>

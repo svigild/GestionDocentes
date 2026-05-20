@@ -61,6 +61,46 @@ public class DocenteController {
     @Value("${app.config.max-permisos-diarios:3}")
     private int MAX_PERMISOS_DIARIOS;
 
+    // --- PRIMER ACCESO: cambio de contraseña obligatorio ---
+    // Muestro un formulario sencillo para que el docente recién creado cambie su contraseña temporal.
+    // Como ya está autenticado por sesión, no necesito ni token ni email.
+    @GetMapping("/web/primer-acceso")
+    public String primerAccesoForm(Principal principal) {
+        Docente d = docenteRepo.findDocenteByEmail(principal.getName()).orElse(null);
+        // Si ya ha cambiado la contraseña, no debería estar aquí: lo mando al dashboard
+        if (d == null || Boolean.TRUE.equals(d.getPasswordChanged())) {
+            return "redirect:/";
+        }
+        return "auth/primer-acceso";
+    }
+
+    @PostMapping("/web/primer-acceso")
+    public String primerAccesoGuardar(@RequestParam("password") String password,
+                                      @RequestParam("password2") String password2,
+                                      Principal principal,
+                                      Model model) {
+        // Validaciones mínimas: que coincidan y tengan al menos 4 caracteres
+        if (password == null || password.length() < 4) {
+            model.addAttribute("error", "La contraseña debe tener al menos 4 caracteres.");
+            return "auth/primer-acceso";
+        }
+        if (!password.equals(password2)) {
+            model.addAttribute("error", "Las contraseñas no coinciden.");
+            return "auth/primer-acceso";
+        }
+
+        Docente d = docenteRepo.findDocenteByEmail(principal.getName()).orElse(null);
+        if (d == null) return "redirect:/login";
+
+        // Encripto y guardo, marcando el flag para que no vuelva a forzarse el cambio
+        d.setPassword(passwordEncoder.encode(password));
+        d.setPasswordChanged(true);
+        docenteRepo.save(d);
+        log.info("Cambio de contraseña inicial completado para {}", d.getEmail());
+
+        return "redirect:/?passwordChanged=true";
+    }
+
     // --- HOME & LISTADO ---
     @GetMapping("/")
     public String home(Model model, Principal principal) {
@@ -68,7 +108,7 @@ public class DocenteController {
         // Si es así, le redirijo forzosamente a la pantalla de cambio de contraseña por seguridad
         Docente d = docenteRepo.findDocenteByEmail(principal.getName()).orElse(null);
         if (d != null && Boolean.FALSE.equals(d.getPasswordChanged())) {
-            return "redirect:/auth/forgot-password?forceChange=true";
+            return "redirect:/web/primer-acceso";
         }
 
         long totalDocentes = docenteRepo.count();
