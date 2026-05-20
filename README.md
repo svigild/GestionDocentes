@@ -4,7 +4,7 @@ Aplicación web para la gestión integral del profesorado de un centro de Formac
 
 **Alumno:** Sergio Vigil Díaz
 **Curso:** 2.º DAW · 2025/2026
-**Proyecto:** Intermodular
+**Proyecto Intermodular** 
 
 ---
 
