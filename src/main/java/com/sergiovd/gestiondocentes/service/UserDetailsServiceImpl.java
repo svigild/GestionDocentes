@@ -23,12 +23,23 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         Docente d = docenteRepo.findDocenteByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
 
-        // Construyo y devuelvo el objeto User estándar de Spring con los datos de mi Docente.
-        // Aquí es donde asigno el rol y la contraseña encriptada para que el framework haga el cotejo.
+        // Mapeo el rol almacenado en la base de datos al sistema de roles de Spring Security.
+        // "Dirección" → ROLE_DIRECCION, "Jefatura" → ROLE_JEFATURA, "Profesor" → ROLE_PROFESOR.
+        // De esta forma, puedo usar @PreAuthorize en los controladores en vez de comparar strings manualmente.
+        String rolNombre = (d.getRol() != null && d.getRol().getNombre() != null)
+                ? d.getRol().getNombre() : "Profesor";
+
+        // Normalizo el nombre del rol para Spring Security: sin tildes y en mayúsculas
+        String rolSpring = switch (rolNombre) {
+            case "Dirección" -> "DIRECCION";
+            case "Jefatura"  -> "JEFATURA";
+            default          -> "PROFESOR";
+        };
+
         return User.builder()
                 .username(d.getEmail())
                 .password(d.getPassword())
-                .roles("USER") // Asigno un rol genérico, la gestión fina de permisos la hago en los controladores
+                .roles(rolSpring) // Spring añade automáticamente el prefijo ROLE_
                 .build();
     }
 }

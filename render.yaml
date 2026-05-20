@@ -1,0 +1,22 @@
+# ============================================================
+# Render Blueprint - GestionDocentes
+# Despliega la app Spring Boot usando la imagen de Docker Hub
+# ============================================================
+
+services:
+  - type: web
+    name: gestion-docentes
+    runtime: image
+    image:
+      url: docker.io/serxu/gestion-docentes:latest
+    envVars:
+      - key: DB_URL
+        sync: false  # Se configura manualmente con la URL de MySQL de Render
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: PORT
+        value: 8080
+      - key: SHOW_SQL
+        value: "false"

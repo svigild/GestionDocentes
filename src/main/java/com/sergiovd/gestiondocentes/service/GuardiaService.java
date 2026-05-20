@@ -1,12 +1,13 @@
 package com.sergiovd.gestiondocentes.service;
 
 import com.sergiovd.gestiondocentes.model.Docente;
+import com.sergiovd.gestiondocentes.model.Horario;
 import com.sergiovd.gestiondocentes.repository.DocenteRepository;
+import com.sergiovd.gestiondocentes.repository.HorarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -15,32 +16,69 @@ public class GuardiaService {
     @Autowired
     private DocenteRepository docenteRepo;
 
-    // Método principal para asignar una guardia. Implementa la lógica de negocio requerida:
-    // priorizar compañeros del mismo departamento y equilibrar la carga de trabajo.
+    @Autowired
+    private HorarioRepository horarioRepo;
+
+    /**
+     * Algoritmo principal de asignación de guardias según el enunciado (3 pasos):
+     *
+     * PASO 1: Mismo departamento que el ausente → el que lleve menos guardias.
+     * PASO 2: Da clase en el mismo grupo/ciclo que el ausente → el que lleve menos guardias.
+     * PASO 3: Cualquier docente del centro → el que lleve menos guardias.
+     */
     public Docente asignarGuardia(Long idDocenteAusente) {
         Docente ausente = docenteRepo.findById(idDocenteAusente).orElse(null);
         if (ausente == null) return null;
 
         List<Docente> todos = docenteRepo.findAll();
-        // Me aseguro de quitar al docente ausente de la lista de candidatos para evitar asignarse a sí mismo
+        // Quito al docente ausente de la lista de candidatos
         todos.removeIf(d -> d.getId().equals(idDocenteAusente));
 
-        // CRITERIO 1: Prioridad pedagógica (Mismo Departamento)
-        // Busco primero entre los compañeros de departamento porque conocen la materia
-        List<Docente> mismoDepto = todos.stream()
-                .filter(d -> d.getDepartamento().equals(ausente.getDepartamento()))
-                // Ordeno por carga de trabajo (quien menos guardias tenga, va primero)
-                .sorted(Comparator.comparingInt(this::getGuardiasRealizadasSafe))
-                .collect(Collectors.toList());
+        // ============================================================
+        // PASO 1: Mismo departamento, ordenado por menos guardias
+        // ============================================================
+        if (ausente.getDepartamento() != null) {
+            List<Docente> mismoDepto = todos.stream()
+                    .filter(d -> d.getDepartamento() != null
+                            && d.getDepartamento().getId().equals(ausente.getDepartamento().getId()))
+                    .sorted(Comparator.comparingInt(this::getGuardiasRealizadasSafe))
+                    .collect(Collectors.toList());
 
-        // Si encuentro a alguien del departamento, devuelvo al mejor candidato directamente
-        if (!mismoDepto.isEmpty()) return mismoDepto.get(0);
+            if (!mismoDepto.isEmpty()) return mismoDepto.get(0);
+        }
 
-        // CRITERIO 2: Solidaridad de centro (Resto del Claustro)
-        // Si no hay nadie del departamento disponible, busco en todo el colegio,
-        // ordenando estrictamente por quien ha hecho menos guardias hasta la fecha.
+        // ============================================================
+        // PASO 2: Da clase en el mismo grupo/ciclo que el ausente
+        // Busco los ciclos en los que imparte el ausente y luego busco
+        // otros docentes que compartan al menos un ciclo.
+        // ============================================================
+        List<Horario> horariosAusente = horarioRepo.findByDocenteId(idDocenteAusente);
+        Set<Long> ciclosAusente = horariosAusente.stream()
+                .filter(h -> h.getAsignatura() != null && h.getAsignatura().getCiclo() != null)
+                .map(h -> h.getAsignatura().getCiclo().getId())
+                .collect(Collectors.toSet());
+
+        if (!ciclosAusente.isEmpty()) {
+            // Reúno todos los IDs de docentes que imparten clase en esos ciclos
+            Set<Long> docentesMismoGrupo = new HashSet<>();
+            for (Long cicloId : ciclosAusente) {
+                docentesMismoGrupo.addAll(horarioRepo.findDocenteIdsByCicloId(cicloId));
+            }
+            // Quito al propio ausente
+            docentesMismoGrupo.remove(idDocenteAusente);
+
+            List<Docente> candidatosMismoGrupo = todos.stream()
+                    .filter(d -> docentesMismoGrupo.contains(d.getId()))
+                    .sorted(Comparator.comparingInt(this::getGuardiasRealizadasSafe))
+                    .collect(Collectors.toList());
+
+            if (!candidatosMismoGrupo.isEmpty()) return candidatosMismoGrupo.get(0);
+        }
+
+        // ============================================================
+        // PASO 3: Cualquier docente, el que lleve menos guardias
+        // ============================================================
         todos.sort(Comparator.comparingInt(this::getGuardiasRealizadasSafe));
-
         return todos.isEmpty() ? null : todos.get(0);
     }
 
@@ -50,34 +88,36 @@ public class GuardiaService {
     }
 
     /**
-     * Mantuve este método separado por si necesito una implementación más específica
-     * para el algoritmo automático que solo mire el departamento, según requisitos específicos del PDF.
+     * Método auxiliar que devuelve una descripción del criterio por el cual se asignó la guardia.
+     * Útil para mostrar al usuario por qué se eligió a este sustituto.
      */
-    public Docente buscarSustitutoAutomatico(Long idDocenteAusente) {
+    public String obtenerCriterioAsignacion(Long idDocenteAusente, Docente sustituto) {
+        if (sustituto == null) return "No se encontró sustituto";
+
         Docente ausente = docenteRepo.findById(idDocenteAusente).orElse(null);
+        if (ausente == null) return "Desconocido";
 
-        if (ausente == null || ausente.getDepartamento() == null) {
-            return null;
+        // Comprobar si es del mismo departamento
+        if (ausente.getDepartamento() != null && sustituto.getDepartamento() != null
+                && ausente.getDepartamento().getId().equals(sustituto.getDepartamento().getId())) {
+            return "Mismo departamento (" + ausente.getDepartamento().getNombre() + ")";
         }
 
-        // Obtengo solo los compañeros de su departamento
-        List<Docente> candidatos = docenteRepo.findByDepartamentoNombre(ausente.getDepartamento().getNombre());
+        // Comprobar si comparten ciclo/grupo
+        List<Horario> horariosAusente = horarioRepo.findByDocenteId(idDocenteAusente);
+        Set<Long> ciclosAusente = horariosAusente.stream()
+                .filter(h -> h.getAsignatura() != null && h.getAsignatura().getCiclo() != null)
+                .map(h -> h.getAsignatura().getCiclo().getId())
+                .collect(Collectors.toSet());
 
-        candidatos = candidatos.stream()
-                .filter(d -> !d.getId().equals(ausente.getId()))
-                .collect(Collectors.toList());
-
-        if (candidatos.isEmpty()) {
-            return null;
+        List<Horario> horariosSustituto = horarioRepo.findByDocenteId(sustituto.getId());
+        for (Horario h : horariosSustituto) {
+            if (h.getAsignatura() != null && h.getAsignatura().getCiclo() != null
+                    && ciclosAusente.contains(h.getAsignatura().getCiclo().getId())) {
+                return "Mismo grupo/ciclo (" + h.getAsignatura().getCiclo().getCodigo() + ")";
+            }
         }
 
-        // Aplico el algoritmo de ordenación con doble criterio:
-        // 1. Menor carga de guardias.
-        // 2. Orden alfabético por apellidos como criterio de desempate determinista.
-        candidatos.sort(Comparator
-                .comparingInt((Docente d) -> d.getGuardiasRealizadas() == null ? 0 : d.getGuardiasRealizadas())
-                .thenComparing(Docente::getApellidos));
-
-        return candidatos.get(0);
+        return "Menor carga de guardias (criterio general)";
     }
 }

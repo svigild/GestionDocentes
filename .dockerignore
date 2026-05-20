@@ -1,0 +1,30 @@
+# Directorios de compilación local
+target/
+
+# IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.classpath
+.project
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+compose.yaml
+.dockerignore
+
+# Documentación
+*.md
+docs/
+
+# Archivos del sistema
+*.log
+.DS_Store
+Thumbs.db

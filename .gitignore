@@ -31,3 +31,24 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Otros editores e IDEs ###
+.cursor/
+.claude/
+.aider*
+.history/
+
+### Archivos temporales del sistema ###
+~$*
+*.tmp
+*.bak
+*.swp
+*.original
+Thumbs.db
+.DS_Store
+
+### Scripts auxiliares de desarrollo (no parte del proyecto) ###
+generar_memoria.py
+
+### Documentos fuente del enunciado ###
+Enunciados/

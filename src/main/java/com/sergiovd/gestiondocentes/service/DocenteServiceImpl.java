@@ -2,22 +2,18 @@ package com.sergiovd.gestiondocentes.service;
 
 import com.sergiovd.gestiondocentes.model.Docente;
 import com.sergiovd.gestiondocentes.repository.DocenteRepository;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class DocenteServiceImpl implements DocenteService {
 
     @Autowired
     private DocenteRepository docenteRepository;
-
-    private ModelMapper modelMapper;
 
     @Override
     public List<Docente> listarTodos() {

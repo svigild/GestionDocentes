@@ -5,141 +5,435 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión Docente - Panel</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
 
     <style>
         :root {
-            --primary-color: #4f46e5;
-            --secondary-color: #64748b;
-            --bg-color: #f1f5f9;
-            --sidebar-width: 260px;
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --primary-light: #e0e7ff;
+            --primary-subtle: #eef2ff;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --text-muted: #94a3b8;
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --sidebar-width: 270px;
+            --header-height: 70px;
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -2px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.06);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        * { box-sizing: border-box; }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: #1e293b;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            margin: 0;
+            overflow-x: hidden;
         }
 
-        /* SIDEBAR */
+        /* ======================= SIDEBAR ======================= */
         .sidebar {
             width: var(--sidebar-width);
             height: 100vh;
             position: fixed;
             top: 0;
             left: 0;
-            background: white;
-            border-right: 1px solid #e2e8f0;
-            padding: 1.5rem;
-            z-index: 1000;
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-color);
+            padding: 1.25rem;
+            z-index: 1050;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .sidebar-logo {
             font-weight: 800;
-            font-size: 1.5rem;
-            color: var(--primary-color);
-            margin-bottom: 2rem;
+            font-size: 1.35rem;
+            color: var(--primary);
+            margin-bottom: 1.75rem;
             display: flex;
             align-items: center;
             gap: 10px;
+            padding: 0.25rem 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .sidebar-logo i {
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .sidebar .nav-section-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-muted);
+            font-weight: 700;
+            margin: 1.25rem 0 0.5rem 0.75rem;
         }
 
         .nav-link {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 0.75rem 1rem;
-            color: #64748b;
+            padding: 0.65rem 0.85rem;
+            color: var(--text-secondary);
             font-weight: 500;
-            border-radius: 8px;
-            transition: all 0.2s;
-            margin-bottom: 5px;
+            font-size: 0.875rem;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            margin-bottom: 2px;
             text-decoration: none;
+            position: relative;
+            white-space: nowrap;
         }
 
         .nav-link:hover {
-            background-color: #e0e7ff;
-            color: var(--primary-color);
+            background-color: var(--primary-subtle);
+            color: var(--primary);
+            transform: translateX(2px);
         }
 
-        /* CLASE ACTIVE PARA RESALTAR LA SECCIÓN ACTUAL */
         .nav-link.active {
-            background-color: #e0e7ff;
-            color: var(--primary-color);
+            background: linear-gradient(135deg, var(--primary-light), var(--primary-subtle));
+            color: var(--primary);
             font-weight: 700;
+            box-shadow: inset 3px 0 0 var(--primary);
         }
 
         .nav-link i {
-            font-size: 1.2rem;
+            font-size: 1.15rem;
+            width: 22px;
+            text-align: center;
+            flex-shrink: 0;
         }
 
-        /* MAIN CONTENT */
+        .sidebar-footer {
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .sidebar-footer .nav-link {
+            color: #ef4444;
+        }
+
+        .sidebar-footer .nav-link:hover {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        /* ======================= OVERLAY (Mobile) ======================= */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15,23,42,0.5);
+            backdrop-filter: blur(4px);
+            z-index: 1040;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ======================= MAIN CONTENT ======================= */
         .main-content {
             margin-left: var(--sidebar-width);
-            padding: 2rem;
+            min-height: 100vh;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* HEADER */
+        /* ======================= TOP HEADER ======================= */
         .top-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2rem;
+            padding: 1rem 2rem;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 1020;
+            min-height: var(--header-height);
+            gap: 1rem;
+        }
+
+        .top-header h4 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin: 0;
+            letter-spacing: -0.3px;
+        }
+
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 0.4rem 0.6rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.25rem;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .hamburger-btn:hover {
+            background: var(--primary-subtle);
+            color: var(--primary);
+            border-color: var(--primary-light);
         }
 
         .user-profile {
             display: flex;
             align-items: center;
             gap: 10px;
-            background: white;
-            padding: 5px 15px 5px 5px;
+            background: var(--bg-body);
+            padding: 6px 14px 6px 6px;
             border-radius: 50px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid var(--border-color);
+            flex-shrink: 0;
+            transition: var(--transition);
+        }
+
+        .user-profile:hover {
+            box-shadow: var(--shadow-sm);
         }
 
         .avatar {
-            width: 35px;
-            height: 35px;
-            background: var(--primary-color);
+            width: 34px;
+            height: 34px;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: bold;
+            font-weight: 700;
+            font-size: 0.75rem;
+            flex-shrink: 0;
         }
 
-        /* TARJETAS GLOBALES */
+        /* ======================= PAGE CONTENT ======================= */
+        .page-content {
+            padding: 1.5rem 2rem 3rem;
+        }
+
+        /* ======================= GLOBAL CARD ======================= */
         .card {
-            border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            background: white;
-            transition: transform 0.2s;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-sm);
+            background: var(--bg-card);
+            transition: var(--transition);
         }
 
+        .card:hover {
+            box-shadow: var(--shadow-md);
+        }
+
+        .card-header {
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* ======================= BUTTONS ======================= */
         .btn-primary {
-            background-color: var(--primary-color);
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             border: none;
-            padding: 0.6rem 1.2rem;
+            padding: 0.55rem 1.15rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+            font-size: 0.875rem;
         }
 
         .btn-primary:hover {
-            background-color: #4338ca;
+            background: linear-gradient(135deg, var(--primary-dark), #3730a3);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79,70,229,0.35);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* ======================= TABLES ======================= */
+        .table {
+            font-size: 0.875rem;
+        }
+
+        .table thead th {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            font-weight: 700;
+            color: var(--text-muted);
+            border-bottom-width: 1px;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: var(--primary-subtle);
+        }
+
+        /* ======================= BADGES ======================= */
+        .badge {
+            font-weight: 600;
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
+        }
+
+        /* ======================= ALERTS ======================= */
+        .alert {
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            border: none;
+        }
+
+        /* ======================= FORM CONTROLS ======================= */
+        .form-control, .form-select {
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
+            border-color: var(--primary);
+        }
+
+        /* ======================= SCROLLBAR ======================= */
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        /* ======================= RESPONSIVE ======================= */
+
+        /* Tablets */
+        @media (max-width: 991.98px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+                box-shadow: var(--shadow-lg);
+            }
+
+            .sidebar-overlay {
+                display: block;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .hamburger-btn {
+                display: flex;
+            }
+
+            .top-header {
+                padding: 0.75rem 1rem;
+            }
+
+            .page-content {
+                padding: 1rem;
+            }
+
+            .top-header h4 {
+                font-size: 0.95rem;
+            }
+        }
+
+        /* Mobile small */
+        @media (max-width: 575.98px) {
+            .sidebar {
+                width: 85vw;
+                max-width: 300px;
+            }
+
+            .page-content {
+                padding: 0.75rem;
+            }
+
+            .top-header {
+                padding: 0.5rem 0.75rem;
+            }
+
+            .top-header h4 {
+                font-size: 0.85rem;
+            }
+
+            .user-profile .d-flex.flex-column {
+                display: none !important;
+            }
+
+            .user-profile {
+                padding: 4px;
+            }
+
+            .card {
+                border-radius: var(--radius-sm);
+            }
+
+            .table-responsive {
+                font-size: 0.8rem;
+            }
+
+            .btn {
+                font-size: 0.8rem;
+                padding: 0.45rem 0.85rem;
+            }
+        }
+
+        /* ======================= PRINT ======================= */
+        @media print {
+            .sidebar, .sidebar-overlay, .top-header, .hamburger-btn, .no-print { display: none !important; }
+            .main-content { margin-left: 0 !important; }
+            .page-content { padding: 0 !important; }
+            body { background: white; }
         }
     </style>
 </head>
 <body>
 
-<nav class="sidebar">
+<!-- SIDEBAR OVERLAY (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
     <div class="sidebar-logo">
         <i class="bi bi-grid-1x2-fill"></i> GestionApp
     </div>
 
-    <div class="d-flex flex-column">
-        <small class="text-uppercase text-muted fw-bold mb-2 ms-2" style="font-size: 0.75rem;">Principal</small>
+    <div class="d-flex flex-column flex-grow-1">
+        <div class="nav-section-label">Principal</div>
 
         <a href="/" class="nav-link"
            th:classappend="${currentUri == '/'} ? 'active'">
@@ -152,11 +446,21 @@
         </a>
 
         <a href="/web/guardias/panel" class="nav-link"
-           th:classappend="${currentUri.contains('/web/guardias')} ? 'active'">
+           th:classappend="${currentUri == '/web/guardias/panel'} ? 'active'">
             <i class="bi bi-calendar-week"></i> Guardias
         </a>
 
-        <small class="text-uppercase text-muted fw-bold mb-2 ms-2 mt-3" style="font-size: 0.75rem;">Gestión</small>
+        <a href="/web/guardias/diario" class="nav-link"
+           th:classappend="${currentUri.contains('/web/guardias/diario')} ? 'active'">
+            <i class="bi bi-calendar-day"></i> Cuadrante Diario
+        </a>
+
+        <a href="/web/horarios" class="nav-link"
+           th:classappend="${currentUri == '/web/horarios'} ? 'active'">
+            <i class="bi bi-clock"></i> Mi Horario
+        </a>
+
+        <div class="nav-section-label">Gestión</div>
 
         <a href="/web/solicitud/nueva" class="nav-link"
            th:classappend="${currentUri.contains('/web/solicitud/nueva')} ? 'active'">
@@ -170,53 +474,103 @@
             <i class="bi bi-list-check"></i> Mis Solicitudes
         </a>
 
+        <a href="/web/horarios/gestionar" class="nav-link"
+           th:if="${usuarioLogueado != null and usuarioLogueado.rol != null and (usuarioLogueado.rol.nombre == 'Dirección' or usuarioLogueado.rol.nombre == 'Jefatura')}"
+           th:classappend="${currentUri.contains('/web/horarios/gestionar')} ? 'active'">
+            <i class="bi bi-pencil-square"></i> Gestionar Horarios
+        </a>
+
+        <a href="/web/faltas" class="nav-link"
+           th:if="${usuarioLogueado != null and usuarioLogueado.rol != null and (usuarioLogueado.rol.nombre == 'Dirección' or usuarioLogueado.rol.nombre == 'Jefatura')}"
+           th:classappend="${currentUri.contains('/web/faltas')} ? 'active'">
+            <i class="bi bi-clipboard-x"></i> Introducir Faltas
+        </a>
+
         <a href="/web/admin/validar" class="nav-link"
-           th:if="${usuarioLogueado != null and usuarioLogueado.rol.id == 1}"
-           th:classappend="${currentUri.contains('/web/admin')} ? 'active'">
+           th:if="${usuarioLogueado != null and usuarioLogueado.rol != null and usuarioLogueado.rol.nombre == 'Dirección'}"
+           th:classappend="${currentUri.contains('/web/admin/validar')} ? 'active'">
             <i class="bi bi-shield-check"></i> Administración
+        </a>
+
+        <a href="/web/admin/estadisticas" class="nav-link"
+           th:if="${usuarioLogueado != null and usuarioLogueado.rol != null and usuarioLogueado.rol.nombre == 'Dirección'}"
+           th:classappend="${currentUri.contains('/web/admin/estadisticas')} ? 'active'">
+            <i class="bi bi-bar-chart-line"></i> Estadísticas
         </a>
     </div>
 
-    <div class="mt-auto">
+    <div class="sidebar-footer">
         <form th:action="@{/logout}" method="post" id="logoutForm">
-            <button type="submit" class="nav-link text-danger border-0 bg-transparent">
+            <button type="submit" class="nav-link text-danger border-0 bg-transparent w-100 text-start">
                 <i class="bi bi-box-arrow-left"></i> Cerrar Sesión
             </button>
         </form>
     </div>
 </nav>
 
+<!-- MAIN CONTENT -->
 <main class="main-content">
     <header class="top-header">
-        <h4 class="fw-bold m-0 text-dark">
-            Bienvenido de nuevo <span th:text="${usuarioLogueado != null ? usuarioLogueado.nombre : 'Usuario'}">Usuario</span> 👋
-        </h4>
+        <div class="d-flex align-items-center gap-2">
+            <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar()">
+                <i class="bi bi-list"></i>
+            </button>
+            <h4>
+                Bienvenido, <span th:text="${usuarioLogueado != null ? usuarioLogueado.nombre : 'Usuario'}">Usuario</span>
+            </h4>
+        </div>
 
         <div class="user-profile" th:if="${usuarioLogueado != null}">
             <div class="avatar"
-                 th:text="${usuarioLogueado.siglas != null ? usuarioLogueado.siglas : 'JD'}"
-                 style="font-size: 0.8rem;">
-                JD
+                 th:text="${usuarioLogueado.siglas != null ? usuarioLogueado.siglas : 'U'}"
+                 style="font-size: 0.75rem;">
+                U
             </div>
-
-            <div class="d-flex flex-column lh-1 me-2">
-                    <span class="fw-bold small"
-                          th:text="${usuarioLogueado.nombre + ' ' + usuarioLogueado.apellidos}">
-                        Juan Docente
-                    </span>
-
+            <div class="d-flex flex-column lh-1 me-1">
+                <span class="fw-bold" style="font-size: 0.8rem;"
+                      th:text="${usuarioLogueado.nombre + ' ' + usuarioLogueado.apellidos}">
+                    Nombre
+                </span>
                 <span class="text-muted"
-                      style="font-size: 0.75rem;"
+                      style="font-size: 0.7rem;"
                       th:text="${usuarioLogueado.rol != null ? usuarioLogueado.rol.nombre : 'Docente'}">
-                        Profesor
-                    </span>
+                    Rol
+                </span>
             </div>
         </div>
     </header>
 
-    <div th:replace="${content}"></div>
+    <div class="page-content">
+        <div th:replace="${content}"></div>
+    </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Toggle sidebar on mobile
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('show');
+        document.getElementById('sidebarOverlay').classList.toggle('show');
+        document.body.style.overflow = document.getElementById('sidebar').classList.contains('show') ? 'hidden' : '';
+    }
+
+    function closeSidebar() {
+        document.getElementById('sidebar').classList.remove('show');
+        document.getElementById('sidebarOverlay').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    // Close sidebar on nav link click (mobile)
+    document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth < 992) closeSidebar();
+        });
+    });
+
+    // Close sidebar on resize to desktop
+    window.addEventListener('resize', () => {
+        if (window.innerWidth >= 992) closeSidebar();
+    });
+</script>
 </body>
 </html>

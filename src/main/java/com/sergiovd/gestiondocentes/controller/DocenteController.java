@@ -1,22 +1,30 @@
 package com.sergiovd.gestiondocentes.controller;
 
 import com.sergiovd.gestiondocentes.dto.SolicitudDTO;
-import com.sergiovd.gestiondocentes.model.AsuntoPropio;
-import com.sergiovd.gestiondocentes.model.Docente;
+import com.sergiovd.gestiondocentes.model.*;
 import com.sergiovd.gestiondocentes.repository.*;
 import com.sergiovd.gestiondocentes.service.DocenteService;
 import com.sergiovd.gestiondocentes.service.GuardiaService;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,6 +37,14 @@ import java.util.stream.Collectors;
 @Controller
 public class DocenteController {
 
+    private static final Logger log = LoggerFactory.getLogger(DocenteController.class);
+
+    /** Extensiones de archivo permitidas para la subida de material justificativo */
+    private static final Set<String> EXTENSIONES_PERMITIDAS = Set.of(
+            ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            ".jpg", ".jpeg", ".png", ".gif", ".txt", ".zip", ".rar"
+    );
+
     @Autowired private DocenteService docenteService;
     @Autowired private DocenteRepository docenteRepo;
     @Autowired private AsuntoPropioRepository asuntoRepo;
@@ -37,6 +53,9 @@ public class DocenteController {
     @Autowired private DepartamentoRepository deptRepo;
     @Autowired private RolRepository rolRepo;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private HorarioRepository horarioRepo;
+    @Autowired private AsignaturaRepository asignaturaRepo;
+    @Autowired private FaltaRepository faltaRepo;
 
     // Leo el número máximo de permisos diarios desde el archivo de configuración para no tener números mágicos en el código
     @Value("${app.config.max-permisos-diarios:3}")
@@ -71,19 +90,56 @@ public class DocenteController {
     }
 
     @GetMapping("/web/admin/estadisticas")
-    public String verEstadisticas(Model model) {
-        // Uso consultas JPQL personalizadas en el repositorio para obtener estas estadísticas de forma eficiente
-        Docente masDisfruton = asuntoRepo.encontrarDocenteConMasDias();
-        long numProfesInfo = docenteRepo.contarDocentesPorDepartamento("IFC");
+    @PreAuthorize("hasRole('DIRECCION')")
+    public String verEstadisticas(Model model, Principal principal) {
 
+        // Totales generales
+        long totalDocentes = docenteRepo.count();
+        List<AsuntoPropio> todasSolicitudes = asuntoRepo.findAll();
+        long aprobadas = todasSolicitudes.stream().filter(a -> Boolean.TRUE.equals(a.getAprobado())).count();
+        long rechazadas = todasSolicitudes.stream().filter(a -> Boolean.FALSE.equals(a.getAprobado())).count();
+        long pendientesCount = todasSolicitudes.stream().filter(a -> a.getAprobado() == null).count();
+
+        model.addAttribute("totalDocentes", totalDocentes);
+        model.addAttribute("aprobadas", aprobadas);
+        model.addAttribute("rechazadas", rechazadas);
+        model.addAttribute("pendientesCount", pendientesCount);
+
+        // Docentes por departamento
+        Map<String, Long> docentesPorDepto = docenteRepo.findAll().stream()
+                .filter(d -> d.getDepartamento() != null)
+                .collect(Collectors.groupingBy(d -> d.getDepartamento().getNombre(), Collectors.counting()));
+        model.addAttribute("docentesPorDepto", docentesPorDepto);
+
+        // Top 5 de guardias realizadas
+        List<Docente> topGuardias = docenteRepo.findAll().stream()
+                .filter(d -> d.getGuardiasRealizadas() != null && d.getGuardiasRealizadas() > 0)
+                .sorted(Comparator.comparing(Docente::getGuardiasRealizadas).reversed())
+                .limit(5)
+                .collect(Collectors.toList());
+        model.addAttribute("topGuardias", topGuardias);
+
+        // Docente con más días disfrutados
+        Docente masDisfruton = null;
+        try { masDisfruton = asuntoRepo.encontrarDocenteConMasDias(); } catch (Exception ignored) {}
         model.addAttribute("masDisfruton", masDisfruton);
-        model.addAttribute("numProfesInfo", numProfesInfo);
+
+        // Distribución por tipo de funcionario
+        List<Docente> todos = docenteRepo.findAll();
+        long carrera = todos.stream().filter(d -> d.getTipoFuncionario() != null && d.getTipoFuncionario() == 1).count();
+        long practicas = todos.stream().filter(d -> d.getTipoFuncionario() != null && d.getTipoFuncionario() == 2).count();
+        long interinos = todos.stream().filter(d -> d.getTipoFuncionario() != null && d.getTipoFuncionario() == 3).count();
+        model.addAttribute("carrera", carrera);
+        model.addAttribute("practicas", practicas);
+        model.addAttribute("interinos", interinos);
 
         return "admin/stats";
     }
 
     @GetMapping("/web/docentes")
-    public String listarDocentes(@RequestParam(required = false) String departamento, Model model) {
+    public String listarDocentes(@RequestParam(required = false) String departamento,
+                                 @RequestParam(required = false) String busqueda,
+                                 Model model) {
         List<Docente> docentes;
 
         // Implementé este if para el filtro por departamento. Si viene un parámetro en la URL, filtro la lista.
@@ -94,9 +150,20 @@ public class DocenteController {
             docentes = docenteService.listarOrdenadosPorApellido();
         }
 
+        // Filtro adicional por nombre o apellidos cuando el usuario usa la barra de búsqueda
+        if (busqueda != null && !busqueda.trim().isEmpty()) {
+            String termino = busqueda.trim().toLowerCase();
+            docentes = docentes.stream()
+                    .filter(d -> (d.getNombre() != null && d.getNombre().toLowerCase().contains(termino))
+                            || (d.getApellidos() != null && d.getApellidos().toLowerCase().contains(termino))
+                            || (d.getEmail() != null && d.getEmail().toLowerCase().contains(termino)))
+                    .collect(Collectors.toList());
+        }
+
         model.addAttribute("listaDocentes", docentes);
         model.addAttribute("departamentos", deptRepo.findAll());
         model.addAttribute("deptSeleccionado", departamento);
+        model.addAttribute("busqueda", busqueda);
 
         return "docentes/list";
     }
@@ -111,7 +178,14 @@ public class DocenteController {
     }
 
     @PostMapping("/web/solicitud/guardar")
-    public String guardarSolicitud(@ModelAttribute SolicitudDTO solicitudDto) {
+    public String guardarSolicitud(@Valid @ModelAttribute("solicitudDto") SolicitudDTO solicitudDto,
+                                   BindingResult bindingResult) {
+
+        // Validación de constraints (Bean Validation): si falla, redirijo con error de formato
+        if (bindingResult.hasErrors()) {
+            log.warn("Validación de solicitud fallida: {}", bindingResult.getAllErrors());
+            return "redirect:/web/solicitud/nueva?error=validacion";
+        }
 
         // Validaciones de negocio:
 
@@ -168,20 +242,33 @@ public class DocenteController {
     @PostMapping("/web/solicitud/subir-material")
     public String subirMaterial(@RequestParam("idSolicitud") Long idSolicitud,
                                 @RequestParam("archivo") MultipartFile archivo) {
+        AsuntoPropio ap = asuntoRepo.findById(idSolicitud).orElse(null);
+        if (ap == null) return "redirect:/";
+
         try {
             if (!archivo.isEmpty()) {
-                // Guardo el archivo físicamente en una carpeta del servidor
+                // Validación de seguridad: solo se permiten extensiones de archivo seguras
+                String nombreOriginal = archivo.getOriginalFilename();
+                String extension = nombreOriginal != null && nombreOriginal.contains(".")
+                        ? nombreOriginal.substring(nombreOriginal.lastIndexOf(".")).toLowerCase()
+                        : "";
+
+                if (!EXTENSIONES_PERMITIDAS.contains(extension)) {
+                    log.warn("Intento de subida de archivo con extensión no permitida: {}", extension);
+                    return "redirect:/web/solicitudes/mis-solicitudes/" + ap.getDocente().getId() + "?errorFormato";
+                }
+
+                // Nombre seguro: ID de solicitud + extensión (evita path traversal)
+                String nombreSeguro = "solicitud_" + idSolicitud + "_" + System.currentTimeMillis() + extension;
                 String carpeta = "uploads/";
-                byte[] bytes = archivo.getBytes();
-                Path path = Paths.get(carpeta + archivo.getOriginalFilename());
+                Path path = Paths.get(carpeta + nombreSeguro);
                 Files.createDirectories(path.getParent());
-                Files.write(path, bytes);
-                System.out.println("MATERIAL SUBIDO: " + archivo.getOriginalFilename());
+                Files.write(path, archivo.getBytes());
+                log.info("Material subido correctamente: {} -> {}", nombreOriginal, nombreSeguro);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("Error al subir material para solicitud {}: {}", idSolicitud, e.getMessage());
         }
-        AsuntoPropio ap = asuntoRepo.findById(idSolicitud).get();
         return "redirect:/web/solicitudes/mis-solicitudes/" + ap.getDocente().getId() + "?uploadSuccess";
     }
 
@@ -214,12 +301,8 @@ public class DocenteController {
 
     // --- ADMIN ---
     @GetMapping("/web/admin/validar")
+    @PreAuthorize("hasRole('DIRECCION')")
     public String panelValidacion(Model model, Principal principal) {
-        // Verificación de seguridad adicional: solo dejo pasar si tiene rol de Administrador (ID 1)
-        Docente usuario = docenteRepo.findDocenteByEmail(principal.getName()).orElse(null);
-        if (usuario == null || usuario.getRol().getId() != 1) {
-            return "redirect:/";
-        }
 
         List<AsuntoPropio> todas = asuntoRepo.findAll();
         List<AsuntoPropio> pendientes = todas.stream().filter(a -> a.getAprobado() == null).collect(Collectors.toList());
@@ -238,7 +321,8 @@ public class DocenteController {
         return "solicitudes/admin-list";
     }
 
-    @GetMapping("/web/admin/accion/{id}/{estado}")
+    @PostMapping("/web/admin/accion/{id}/{estado}")
+    @PreAuthorize("hasRole('DIRECCION')")
     public String validarSolicitud(@PathVariable Long id, @PathVariable Boolean estado) {
         AsuntoPropio ap = asuntoRepo.findById(id).orElse(null);
         if (ap != null) {
@@ -254,7 +338,7 @@ public class DocenteController {
                     msg.setText(estado ? "Su solicitud ha sido APROBADA." : "Su solicitud ha sido DENEGADA.");
                     mailSender.send(msg);
                 } catch (Exception e) {
-                    System.err.println("Fallo al enviar email: " + e.getMessage());
+                    log.warn("Fallo al enviar email de notificación: {}", e.getMessage());
                 }
             }
         }
@@ -306,6 +390,140 @@ public class DocenteController {
         return "guardias/panel";
     }
 
+    // =====================================================================
+    // --- EXPORTAR CSV (Descarga de fichero con datos del claustro) ---
+    // IMPORTANTE: va ANTES de /web/docentes/{id} para que Spring no confunda "exportar" con un ID
+    // =====================================================================
+    @GetMapping("/web/docentes/exportar")
+    public void exportarCSV(HttpServletResponse response) throws IOException {
+        response.setContentType("text/csv; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=claustro_docentes.csv");
+
+        // Uso OutputStream para poder escribir el BOM y luego el texto CSV
+        java.io.OutputStream out = response.getOutputStream();
+        // BOM para que Excel reconozca UTF-8 correctamente
+        out.write(new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF});
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Nombre,Apellidos,Email,Siglas,Departamento,Rol,Tipo Funcionario,Nota Oposicion,Antiguedad,Guardias Realizadas\n");
+
+        List<Docente> docentes = docenteService.listarOrdenadosPorApellido();
+        for (Docente d : docentes) {
+            String tipo = "";
+            if (d.getTipoFuncionario() != null) {
+                switch (d.getTipoFuncionario()) {
+                    case 1: tipo = "Carrera"; break;
+                    case 2: tipo = "Practicas"; break;
+                    case 3: tipo = "Interino"; break;
+                }
+            }
+            sb.append(String.format("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
+                    d.getNombre() != null ? d.getNombre() : "",
+                    d.getApellidos() != null ? d.getApellidos() : "",
+                    d.getEmail() != null ? d.getEmail() : "",
+                    d.getSiglas() != null ? d.getSiglas() : "",
+                    d.getDepartamento() != null ? d.getDepartamento().getNombre() : "",
+                    d.getRol() != null ? d.getRol().getNombre() : "",
+                    tipo,
+                    d.getNotaOposicion() != null ? d.getNotaOposicion() : "",
+                    d.getFechaAntiguedad() != null ? d.getFechaAntiguedad() : "",
+                    d.getGuardiasRealizadas() != null ? d.getGuardiasRealizadas() : 0));
+        }
+        out.write(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        out.flush();
+    }
+
+    // --- EDITAR DOCENTE (va ANTES de {id}) ---
+    @GetMapping("/web/docentes/editar/{id}")
+    public String formEditarDocente(@PathVariable Long id, Model model) {
+        Docente docente = docenteRepo.findById(id).orElse(null);
+        if (docente == null) return "redirect:/web/docentes";
+        model.addAttribute("docente", docente);
+        model.addAttribute("departamentos", deptRepo.findAll());
+        model.addAttribute("roles", rolRepo.findAll());
+        return "docentes/form";
+    }
+
+    @PostMapping("/web/docentes/guardar-edicion")
+    @PreAuthorize("hasAnyRole('DIRECCION', 'JEFATURA')")
+    public String guardarEdicion(@Valid @ModelAttribute("docente") Docente docente,
+                                 BindingResult bindingResult,
+                                 Model model) {
+        // Si los datos no cumplen las restricciones de validación, vuelvo al formulario con los errores
+        if (bindingResult.hasErrors()) {
+            log.warn("Validación de edición de docente fallida: {}", bindingResult.getAllErrors());
+            model.addAttribute("departamentos", deptRepo.findAll());
+            model.addAttribute("roles", rolRepo.findAll());
+            return "docentes/form";
+        }
+        Docente existente = docenteRepo.findById(docente.getId()).orElse(null);
+        if (existente == null) return "redirect:/web/docentes";
+        existente.setNombre(docente.getNombre());
+        existente.setApellidos(docente.getApellidos());
+        existente.setEmail(docente.getEmail());
+        existente.setSiglas(docente.getSiglas());
+        existente.setDepartamento(docente.getDepartamento());
+        existente.setRol(docente.getRol());
+        existente.setTipoFuncionario(docente.getTipoFuncionario());
+        existente.setNotaOposicion(docente.getNotaOposicion());
+        existente.setFechaAntiguedad(docente.getFechaAntiguedad());
+        docenteRepo.save(existente);
+        return "redirect:/web/docentes?editado=true";
+    }
+
+    // --- ELIMINAR DOCENTE (solo Dirección) ---
+    @PostMapping("/web/docentes/eliminar/{id}")
+    @Transactional
+    @PreAuthorize("hasRole('DIRECCION')")
+    public String eliminarDocente(@PathVariable Long id, Principal principal) {
+        Docente docente = docenteRepo.findById(id).orElse(null);
+        if (docente != null) {
+            horarioRepo.deleteByDocenteId(id);
+            List<AsuntoPropio> solicitudes = asuntoRepo.findByDocenteIdOrderByDiaSolicitadoDesc(id);
+            asuntoRepo.deleteAll(solicitudes);
+            docenteRepo.delete(docente);
+        }
+        return "redirect:/web/docentes?eliminado=true";
+    }
+
+    // --- PERFIL DETALLADO ---
+    @GetMapping("/web/docentes/{id}")
+    public String perfilDocente(@PathVariable Long id, Model model) {
+        Docente docente = docenteRepo.findById(id).orElse(null);
+        if (docente == null) return "redirect:/web/docentes";
+
+        // Horario semanal organizado en una matriz [hora][dia]
+        // Creo una estructura de 7 horas x 5 días para pintar la tabla del horario
+        String[][] matrizHorario = new String[7][5];
+        String[][] matrizAula = new String[7][5];
+        if (docente.getHorarios() != null) {
+            for (Horario h : docente.getHorarios()) {
+                int fila = h.getHora() - 1;
+                int col = h.getDia() - 1;
+                if (fila >= 0 && fila < 7 && col >= 0 && col < 5) {
+                    matrizHorario[fila][col] = h.getAsignatura() != null ? h.getAsignatura().getSiglas() : "—";
+                    matrizAula[fila][col] = h.getAula() != null ? h.getAula() : "";
+                }
+            }
+        }
+
+        // Solicitudes del docente
+        List<AsuntoPropio> solicitudes = asuntoRepo.findByDocenteIdOrderByDiaSolicitadoDesc(id);
+        long aprobadas = solicitudes.stream().filter(s -> Boolean.TRUE.equals(s.getAprobado())).count();
+        long rechazadas = solicitudes.stream().filter(s -> Boolean.FALSE.equals(s.getAprobado())).count();
+        long pendientes = solicitudes.stream().filter(s -> s.getAprobado() == null).count();
+
+        model.addAttribute("docente", docente);
+        model.addAttribute("matrizHorario", matrizHorario);
+        model.addAttribute("matrizAula", matrizAula);
+        model.addAttribute("solicitudes", solicitudes);
+        model.addAttribute("aprobadas", aprobadas);
+        model.addAttribute("rechazadas", rechazadas);
+        model.addAttribute("pendientes", pendientes);
+
+        return "docentes/perfil";
+    }
+
     @GetMapping("/web/docentes/crear")
     public String formNuevoDocente(Model model) {
         model.addAttribute("docente", new Docente());
@@ -315,7 +533,17 @@ public class DocenteController {
     }
 
     @PostMapping("/web/docentes/guardar-nuevo")
-    public String guardarNuevoDocente(@ModelAttribute Docente docente) {
+    @PreAuthorize("hasAnyRole('DIRECCION', 'JEFATURA')")
+    public String guardarNuevoDocente(@Valid @ModelAttribute("docente") Docente docente,
+                                      BindingResult bindingResult,
+                                      Model model) {
+        // Validación previa de constraints. Si falla, vuelvo al formulario con los mensajes de error
+        if (bindingResult.hasErrors()) {
+            log.warn("Validación de nuevo docente fallida: {}", bindingResult.getAllErrors());
+            model.addAttribute("departamentos", deptRepo.findAll());
+            model.addAttribute("roles", rolRepo.findAll());
+            return "docentes/form";
+        }
         // Genero una contraseña temporal y fuerzo al usuario a cambiarla en el primer login
         String passTemporal = "1234";
         docente.setPassword(passwordEncoder.encode(passTemporal));
@@ -336,38 +564,27 @@ public class DocenteController {
                 msg.setText("Usuario: " + docente.getEmail() + "\nContraseña: " + passTemporal);
                 mailSender.send(msg);
             } catch (Exception e) {
-                System.err.println("Error enviando email: " + e.getMessage());
+                log.warn("Error enviando email de credenciales: {}", e.getMessage());
             }
         }
 
         return "redirect:/web/docentes?creado=true";
     }
 
-    // --- ALGORITMO DE ASIGNACION ---
+    // --- ALGORITMO DE ASIGNACION (3 pasos según enunciado) ---
     @PostMapping("/web/guardias/asignar")
     public String asignarGuardia(@RequestParam Long idDocenteAusente, Model model) {
         Docente ausente = docenteRepo.findById(idDocenteAusente).orElse(null);
         if (ausente == null) return "redirect:/web/guardias/panel";
 
-        // Ejecuto el algoritmo de asignación en dos fases:
-        // 1. Busco compañeros del mismo departamento (prioridad pedagógica).
-        // 2. Ordeno por carga de trabajo (quien ha hecho menos guardias va primero).
-        List<Docente> candidatos = docenteRepo.findAll().stream()
-                .filter(d -> !d.getId().equals(ausente.getId())) // Excluyo al propio ausente
-                .filter(d -> d.getDepartamento().getId().equals(ausente.getDepartamento().getId()))
-                .sorted(Comparator.comparing(d -> d.getGuardiasRealizadas() == null ? 0 : d.getGuardiasRealizadas()))
-                .toList();
+        // Delego en el servicio que implementa los 3 pasos del algoritmo:
+        // Paso 1: Mismo departamento + menos guardias
+        // Paso 2: Mismo grupo/ciclo + menos guardias
+        // Paso 3: Cualquier docente + menos guardias
+        Docente sustituto = guardiaService.asignarGuardia(ausente.getId());
 
-        // Si no encuentro a nadie del mismo departamento, amplio la búsqueda a todo el claustro
-        if (candidatos.isEmpty()) {
-            candidatos = docenteRepo.findAll().stream()
-                    .filter(d -> !d.getId().equals(ausente.getId()))
-                    .sorted(Comparator.comparing(d -> d.getGuardiasRealizadas() == null ? 0 : d.getGuardiasRealizadas()))
-                    .toList();
-        }
-
-        // Selecciono al mejor candidato (el primero de la lista ordenada)
-        Docente sustituto = candidatos.isEmpty() ? null : candidatos.get(0);
+        // Obtengo el criterio por el que se eligió para mostrarlo en la vista
+        String criterio = guardiaService.obtenerCriterioAsignacion(ausente.getId(), sustituto);
 
         if (sustituto != null) {
             // Actualizo la carga de trabajo del sustituto incrementando su contador
@@ -379,20 +596,219 @@ public class DocenteController {
             List<AsuntoPropio> ausenciasSinCubrir = asuntoRepo.findAll().stream()
                     .filter(a -> a.getDocente().getId().equals(ausente.getId()))
                     .filter(a -> Boolean.TRUE.equals(a.getAprobado()))
-                    .filter(a -> a.getSustituto() == null) // Importante: solo las que no tienen sustituto aún
+                    .filter(a -> a.getSustituto() == null)
                     .filter(a -> !a.getDiaSolicitado().isBefore(LocalDate.now()))
                     .toList();
 
-            // Vinculo el sustituto encontrado a esas solicitudes y guardo los cambios.
-            // Esto es lo que permite que el calendario muestre el nombre del sustituto en verde.
             for (AsuntoPropio ausencia : ausenciasSinCubrir) {
                 ausencia.setSustituto(sustituto);
                 asuntoRepo.save(ausencia);
+            }
+
+            // También asigno el sustituto a las faltas registradas sin cubrir de hoy en adelante
+            List<Falta> faltasSinCubrir = faltaRepo.findByDocenteId(ausente.getId()).stream()
+                    .filter(f -> f.getSustituto() == null)
+                    .filter(f -> f.getFecha() != null && !f.getFecha().isBefore(LocalDate.now()))
+                    .toList();
+            for (Falta falta : faltasSinCubrir) {
+                falta.setSustituto(sustituto);
+                faltaRepo.save(falta);
             }
         }
 
         model.addAttribute("ausente", ausente);
         model.addAttribute("sustituto", sustituto);
+        model.addAttribute("criterio", criterio);
         return "guardias/resultado";
+    }
+
+    // =====================================================================
+    // --- CUADRANTE DIARIO DE GUARDIAS (Vista hora a hora de un día) ---
+    // =====================================================================
+    @GetMapping("/web/guardias/diario")
+    public String cuadranteDiario(@RequestParam(required = false) String fecha, Model model) {
+        LocalDate dia = (fecha != null && !fecha.isEmpty()) ? LocalDate.parse(fecha) : LocalDate.now();
+
+        // Calculo el día de la semana (1=Lunes, 5=Viernes) para buscar en los horarios
+        int diaSemana = dia.getDayOfWeek().getValue();
+        if (diaSemana > 5) {
+            // Fin de semana: redirijo al viernes anterior
+            dia = dia.minusDays(diaSemana - 5);
+            diaSemana = 5;
+        }
+
+        // Para cada hora (1-7), busco quién falta y quién cubre
+        List<Map<String, Object>> filas = new ArrayList<>();
+
+        for (int hora = 1; hora <= 7; hora++) {
+            Map<String, Object> fila = new LinkedHashMap<>();
+            fila.put("hora", hora);
+
+            // Busco faltas registradas en este día y hora
+            final int horaFinal = hora;
+            final int diaFinal = diaSemana;
+            List<Falta> faltasEstaHora = faltaRepo.findByFecha(dia).stream()
+                    .filter(f -> f.getHorario() != null
+                            && f.getHorario().getDia() != null && f.getHorario().getDia().equals(diaFinal)
+                            && f.getHorario().getHora() != null && f.getHorario().getHora().equals(horaFinal))
+                    .collect(Collectors.toList());
+
+            fila.put("faltas", faltasEstaHora);
+            filas.add(fila);
+        }
+
+        String[] diasSemana = {"", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes"};
+        model.addAttribute("filas", filas);
+        model.addAttribute("fechaSeleccionada", dia);
+        model.addAttribute("nombreDia", diasSemana[diaSemana]);
+        model.addAttribute("diaSemana", diaSemana);
+
+        return "guardias/diario";
+    }
+
+    // =====================================================================
+    // --- MARCAR GUARDIA COMO REALIZADA / NO REALIZADA ---
+    // =====================================================================
+    @PostMapping("/web/faltas/marcar/{id}/{estado}")
+    @PreAuthorize("hasAnyRole('DIRECCION', 'JEFATURA')")
+    public String marcarGuardiaRealizada(@PathVariable Long id, @PathVariable Boolean estado) {
+        Falta falta = faltaRepo.findById(id).orElse(null);
+        if (falta != null) {
+            falta.setRealizada(estado);
+            faltaRepo.save(falta);
+        }
+        return "redirect:/web/faltas";
+    }
+
+    // =====================================================================
+    // --- MI HORARIO (Vista semanal del docente autenticado) ---
+    // =====================================================================
+    @GetMapping("/web/horarios")
+    public String miHorario(Model model, Principal principal) {
+        Docente docente = docenteRepo.findDocenteByEmail(principal.getName()).orElse(null);
+        if (docente == null) return "redirect:/";
+
+        // Construyo la matriz 7 horas x 5 días para la rejilla semanal
+        String[][] matrizHorario = new String[7][5];
+        String[][] matrizAula = new String[7][5];
+
+        List<Horario> horarios = horarioRepo.findByDocenteId(docente.getId());
+        for (Horario h : horarios) {
+            int fila = h.getHora() - 1;
+            int col = h.getDia() - 1;
+            if (fila >= 0 && fila < 7 && col >= 0 && col < 5) {
+                matrizHorario[fila][col] = h.getAsignatura() != null ? h.getAsignatura().getSiglas() : "—";
+                matrizAula[fila][col] = h.getAula() != null ? h.getAula() : "";
+            }
+        }
+
+        model.addAttribute("docente", docente);
+        model.addAttribute("matrizHorario", matrizHorario);
+        model.addAttribute("matrizAula", matrizAula);
+        return "horarios/ver";
+    }
+
+    // =====================================================================
+    // --- GESTIONAR HORARIOS (Asignar franjas - solo Dirección/Jefatura) ---
+    // =====================================================================
+    @GetMapping("/web/horarios/gestionar")
+    @PreAuthorize("hasAnyRole('DIRECCION', 'JEFATURA')")
+    public String gestionarHorarios(Model model, Principal principal) {
+
+        model.addAttribute("docentes", docenteService.listarOrdenadosPorApellido());
+        model.addAttribute("asignaturas", asignaturaRepo.findAll());
+
+        // Muestro las últimas 50 franjas horarias asignadas para referencia
+        List<Horario> horarios = horarioRepo.findAll();
+        // Ordeno por docente apellido + día + hora
+        horarios.sort(Comparator.comparing((Horario h) -> h.getDocente() != null ? h.getDocente().getApellidos() : "")
+                .thenComparing(Horario::getDia, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(Horario::getHora, Comparator.nullsLast(Comparator.naturalOrder())));
+        if (horarios.size() > 50) horarios = horarios.subList(0, 50);
+
+        model.addAttribute("horarios", horarios);
+        return "horarios/gestionar";
+    }
+
+    @PostMapping("/web/horarios/gestionar/guardar")
+    public String guardarFranjaHoraria(@RequestParam Long docenteId,
+                                       @RequestParam Integer dia,
+                                       @RequestParam Integer hora,
+                                       @RequestParam Long asignaturaId,
+                                       @RequestParam String aula) {
+        Horario h = new Horario();
+        h.setDocente(docenteRepo.findById(docenteId).orElse(null));
+        h.setDia(dia);
+        h.setHora(hora);
+        h.setAsignatura(asignaturaRepo.findById(asignaturaId).orElse(null));
+        h.setAula(aula);
+        horarioRepo.save(h);
+        return "redirect:/web/horarios/gestionar?guardado=true";
+    }
+
+    @PostMapping("/web/horarios/gestionar/eliminar/{id}")
+    @Transactional
+    @PreAuthorize("hasAnyRole('DIRECCION', 'JEFATURA')")
+    public String eliminarFranjaHoraria(@PathVariable Long id) {
+        horarioRepo.deleteById(id);
+        return "redirect:/web/horarios/gestionar?eliminado=true";
+    }
+
+    // =====================================================================
+    // --- UC4: INTRODUCIR FALTAS (Registrar ausencias en franjas horarias) ---
+    // =====================================================================
+    @GetMapping("/web/faltas")
+    @PreAuthorize("hasAnyRole('DIRECCION', 'JEFATURA')")
+    public String panelFaltas(Model model, Principal principal) {
+
+        model.addAttribute("docentes", docenteService.listarOrdenadosPorApellido());
+
+        // Cargo las últimas 50 faltas registradas, ordenadas por fecha descendente
+        List<Falta> faltas = faltaRepo.findAll();
+        faltas.sort(Comparator.comparing(Falta::getFecha, Comparator.nullsLast(Comparator.reverseOrder())));
+        if (faltas.size() > 50) faltas = faltas.subList(0, 50);
+        model.addAttribute("faltas", faltas);
+
+        return "faltas/introducir";
+    }
+
+    @PostMapping("/web/faltas/guardar")
+    public String guardarFalta(@RequestParam Long docenteId,
+                               @RequestParam String fecha,
+                               @RequestParam Integer dia,
+                               @RequestParam Integer hora,
+                               @RequestParam(required = false) String anotacion,
+                               @RequestParam(required = false) String material) {
+
+        LocalDate fechaFalta = LocalDate.parse(fecha);
+
+        // Busco la franja horaria del docente en ese día y hora
+        List<Horario> horariosDocente = horarioRepo.findByDocenteId(docenteId);
+        Horario horarioAfectado = horariosDocente.stream()
+                .filter(h -> h.getDia() != null && h.getDia().equals(dia) && h.getHora() != null && h.getHora().equals(hora))
+                .findFirst()
+                .orElse(null);
+
+        if (horarioAfectado == null) {
+            // El docente no tiene clase en esa franja, no se puede registrar falta
+            return "redirect:/web/faltas?error=true";
+        }
+
+        Falta falta = new Falta();
+        falta.setFecha(fechaFalta);
+        falta.setHorario(horarioAfectado);
+        falta.setAnotacion(anotacion);
+        falta.setMaterial(material);
+        faltaRepo.save(falta);
+
+        return "redirect:/web/faltas?guardado=true";
+    }
+
+    @PostMapping("/web/faltas/eliminar/{id}")
+    @Transactional
+    @PreAuthorize("hasAnyRole('DIRECCION', 'JEFATURA')")
+    public String eliminarFalta(@PathVariable Long id) {
+        faltaRepo.deleteById(id);
+        return "redirect:/web/faltas?eliminado=true";
     }
 }

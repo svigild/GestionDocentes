@@ -5,67 +5,62 @@
 <body>
 <section>
 
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
     <div>
-      <h4 class="fw-bold m-0 text-dark">Claustro de Profesores</h4>
-      <p class="text-muted small m-0">Listado completo del personal docente del centro.</p>
+      <h4 class="fw-bold m-0 text-dark" style="font-size: 1.15rem;">Claustro de Profesores</h4>
+      <p class="text-muted small m-0 d-none d-sm-block">Listado completo del personal docente del centro.</p>
     </div>
     <div class="d-flex gap-2">
-      <button class="btn btn-white border shadow-sm text-muted bg-white fw-medium">
-        <i class="bi bi-download me-2"></i>Exportar CSV
-      </button>
-      <a th:href="@{/web/docentes/crear}" class="btn btn-primary shadow-sm fw-medium">
-        <i class="bi bi-person-plus-fill me-2"></i>Nuevo Docente
+      <a th:href="@{/web/docentes/exportar}" class="btn btn-white border shadow-sm text-muted bg-white fw-medium btn-sm">
+        <i class="bi bi-download me-1"></i><span class="d-none d-sm-inline">Exportar CSV</span>
+      </a>
+      <a th:href="@{/web/docentes/crear}" class="btn btn-primary shadow-sm fw-medium btn-sm">
+        <i class="bi bi-person-plus-fill me-1"></i><span class="d-none d-sm-inline">Nuevo Docente</span><span class="d-sm-none">Nuevo</span>
       </a>
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm mb-4">
+  <!-- BARRA DE BÚSQUEDA -->
+  <div class="card border-0 mb-4">
     <div class="card-body p-2">
-      <form th:action="@{/web/docentes}" method="get" class="row g-2 align-items-center">
+      <form th:action="@{/web/docentes}" method="get" class="d-flex flex-wrap align-items-center gap-2">
 
-        <div class="col-auto ps-3 text-muted">
-          <i class="bi bi-search"></i>
+        <div class="d-flex align-items-center flex-grow-1 gap-2 ps-2">
+          <i class="bi bi-search text-muted"></i>
+          <input type="text" name="busqueda" th:value="${busqueda}"
+                 class="form-control border-0 shadow-none" placeholder="Buscar docente..."
+                 style="min-width: 120px;">
         </div>
 
-        <div class="col">
-          <input type="text" class="form-control border-0 shadow-none" placeholder="Buscar docente...">
-        </div>
+        <div class="vr d-none d-md-block mx-1 text-muted opacity-25" style="height: 24px;"></div>
 
-        <div class="col-auto">
-          <div class="vr h-100 mx-2 text-muted opacity-25"></div>
-        </div>
-
-        <div class="col-auto pe-3">
-          <select name="departamento" class="form-select border-0 shadow-none bg-light text-muted fw-medium"
-                  style="width: 200px; font-size: 0.9rem;"
-                  onchange="this.form.submit()">
-
-            <option value="Todos">Todos los Dept.</option>
-            <option th:each="dept : ${departamentos}"
-                    th:value="${dept.nombre}"
-                    th:text="${dept.nombre}"
-                    th:selected="${dept.nombre == deptSeleccionado}">
-              Informática
-            </option>
-
-          </select>
-        </div>
+        <select name="departamento" class="form-select border-0 shadow-none bg-light text-muted fw-medium"
+                style="width: auto; min-width: 160px; max-width: 220px; font-size: 0.85rem;"
+                onchange="this.form.submit()">
+          <option value="Todos">Todos los Dept.</option>
+          <option th:each="dept : ${departamentos}"
+                  th:value="${dept.nombre}"
+                  th:text="${dept.nombre}"
+                  th:selected="${dept.nombre == deptSeleccionado}">
+            Informática
+          </option>
+        </select>
 
       </form>
     </div>
   </div>
 
-  <div class="card border-0 shadow-sm overflow-hidden">
+  <!-- TABLA DE DOCENTES (Desktop) -->
+  <div class="card border-0 overflow-hidden d-none d-md-block">
     <div class="table-responsive">
       <table class="table align-middle table-hover mb-0">
         <thead class="bg-light border-bottom">
         <tr>
-          <th class="ps-4 py-3 text-uppercase text-muted small fw-bold" style="letter-spacing: 0.5px;">Docente</th>
-          <th class="py-3 text-uppercase text-muted small fw-bold" style="letter-spacing: 0.5px;">Departamento</th>
-          <th class="py-3 text-uppercase text-muted small fw-bold" style="letter-spacing: 0.5px;">Siglas</th>
-          <th class="py-3 text-uppercase text-muted small fw-bold" style="letter-spacing: 0.5px;">Rol</th>
-          <th class="pe-4 py-3 text-end text-uppercase text-muted small fw-bold" style="letter-spacing: 0.5px;">Acciones</th>
+          <th class="ps-4 py-3">Docente</th>
+          <th class="py-3">Departamento</th>
+          <th class="py-3 d-none d-lg-table-cell">Siglas</th>
+          <th class="py-3">Rol</th>
+          <th class="pe-4 py-3 text-end">Acciones</th>
         </tr>
         </thead>
         <tbody>
@@ -73,49 +68,54 @@
           <td class="ps-4 py-3">
             <div class="d-flex align-items-center">
               <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold me-3 shadow-sm"
-                   style="width: 40px; height: 40px; font-size: 0.85rem; background: linear-gradient(135deg, #4f46e5, #818cf8);"
+                   style="width: 38px; height: 38px; font-size: 0.8rem; background: linear-gradient(135deg, #4f46e5, #818cf8);"
                    th:text="${#strings.substring(docente.nombre,0,1) + #strings.substring(docente.apellidos,0,1)}">
                 JD
               </div>
-              <div class="d-flex flex-column">
-                <span class="fw-bold text-dark" th:text="${docente.apellidos} + ', ' + ${docente.nombre}">Apellido, Nombre</span>
-                <span class="small text-muted" th:text="${docente.email}">correo@educastur.org</span>
+              <div>
+                <span class="fw-bold text-dark" style="font-size: 0.875rem;" th:text="${docente.apellidos} + ', ' + ${docente.nombre}">Apellido, Nombre</span>
+                <span class="small text-muted d-block" style="font-size: 0.75rem;" th:text="${docente.email}">correo@educastur.org</span>
               </div>
             </div>
           </td>
 
           <td>
             <div th:if="${docente.departamento != null}" class="d-flex align-items-center gap-2">
-                                <span class="badge bg-light text-secondary border fw-normal px-2 py-1"
-                                      th:text="${docente.departamento.codigo}">COD</span>
-              <span class="small text-muted" th:text="${docente.departamento.nombre}">Nombre Dept</span>
+              <span class="badge bg-light text-secondary border fw-normal px-2 py-1"
+                    th:text="${docente.departamento.codigo}">COD</span>
+              <span class="small text-muted d-none d-xl-inline" th:text="${docente.departamento.nombre}">Nombre Dept</span>
             </div>
             <span class="text-muted small fst-italic" th:unless="${docente.departamento != null}">Sin asignar</span>
           </td>
 
-          <td>
-                            <span class="font-monospace small bg-light px-2 py-1 rounded border text-muted fw-bold"
-                                  th:text="${docente.siglas}">ABCD</span>
+          <td class="d-none d-lg-table-cell">
+            <span class="font-monospace small bg-light px-2 py-1 rounded border text-muted fw-bold"
+                  th:text="${docente.siglas}">ABCD</span>
           </td>
 
           <td>
-                            <span th:if="${docente.rol != null}"
-                                  class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 fw-normal"
-                                  th:text="${docente.rol.nombre}">Profesor</span>
-            <span th:unless="${docente.rol != null}" class="text-muted small">-</span>
+            <span th:if="${docente.rol != null}"
+                  class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-3 fw-normal"
+                  th:text="${docente.rol.nombre}">Profesor</span>
+            <span th:unless="${docente.rol != null}" class="text-muted small">—</span>
           </td>
 
           <td class="pe-4 text-end">
             <div class="dropdown">
-              <button class="btn btn-light btn-sm rounded-circle shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <button class="btn btn-light btn-sm rounded-circle shadow-sm" type="button" data-bs-toggle="dropdown">
                 <i class="bi bi-three-dots-vertical text-muted"></i>
               </button>
-              <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
-                <li><a class="dropdown-item small py-2" href="#"><i class="bi bi-eye me-2 text-primary"></i> Ver Perfil</a></li>
-                <li><a class="dropdown-item small py-2" href="#"><i class="bi bi-pencil me-2 text-warning"></i> Editar</a></li>
-                <li><a class="dropdown-item small py-2" href="#"><i class="bi bi-envelope me-2 text-secondary"></i> Enviar Email</a></li>
+              <ul class="dropdown-menu dropdown-menu-end border shadow-sm">
+                <li><a class="dropdown-item small py-2" th:href="@{'/web/docentes/' + ${docente.id}}"><i class="bi bi-eye me-2 text-primary"></i> Ver Perfil</a></li>
+                <li><a class="dropdown-item small py-2" th:href="@{'/web/docentes/editar/' + ${docente.id}}"><i class="bi bi-pencil me-2 text-warning"></i> Editar</a></li>
+                <li><a class="dropdown-item small py-2" th:href="'mailto:' + ${docente.email}"><i class="bi bi-envelope me-2 text-secondary"></i> Email</a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item small py-2 text-danger" href="#"><i class="bi bi-trash me-2"></i> Eliminar</a></li>
+                <li>
+                  <form th:action="@{'/web/docentes/eliminar/' + ${docente.id}}" method="post" style="display:inline;"
+                        onsubmit="return confirm('¿Eliminar este docente? No se puede deshacer.');">
+                    <button type="submit" class="dropdown-item small py-2 text-danger"><i class="bi bi-trash me-2"></i> Eliminar</button>
+                  </form>
+                </li>
               </ul>
             </div>
           </td>
@@ -125,24 +125,61 @@
     </div>
 
     <div th:if="${#lists.isEmpty(listaDocentes)}" class="text-center py-5">
-      <div class="mb-3 text-muted opacity-25">
-        <i class="bi bi-people fs-1"></i>
-      </div>
+      <i class="bi bi-people fs-1 text-muted opacity-25 d-block mb-2"></i>
       <h6 class="fw-bold text-muted">No hay docentes registrados</h6>
-      <p class="small text-muted">Utiliza el botón superior para añadir nuevos profesores.</p>
+      <p class="small text-muted">Añade nuevos profesores con el botón superior.</p>
     </div>
 
-    <div class="card-footer bg-white border-0 py-3 d-flex justify-content-between align-items-center" th:unless="${#lists.isEmpty(listaDocentes)}">
+    <div class="card-footer bg-white border-0 py-3 px-4" th:unless="${#lists.isEmpty(listaDocentes)}">
       <small class="text-muted">Mostrando <span class="fw-bold text-dark" th:text="${#lists.size(listaDocentes)}">0</span> docentes</small>
-      <nav>
-        <ul class="pagination pagination-sm mb-0 gap-1">
-          <li class="page-item disabled"><a class="page-link border-0 rounded-circle" href="#"><i class="bi bi-chevron-left"></i></a></li>
-          <li class="page-item active"><a class="page-link border-0 rounded-circle bg-primary text-white" href="#">1</a></li>
-          <li class="page-item"><a class="page-link border-0 rounded-circle text-muted" href="#">2</a></li>
-          <li class="page-item"><a class="page-link border-0 rounded-circle text-muted" href="#">3</a></li>
-          <li class="page-item"><a class="page-link border-0 rounded-circle text-muted" href="#"><i class="bi bi-chevron-right"></i></a></li>
-        </ul>
-      </nav>
+    </div>
+  </div>
+
+  <!-- TARJETAS MOBILE (< md) -->
+  <div class="d-md-none">
+    <div th:each="docente : ${listaDocentes}" class="card border-0 mb-2 p-3">
+      <div class="d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <div class="rounded-circle text-white d-flex align-items-center justify-content-center fw-bold shadow-sm"
+               style="width: 40px; height: 40px; font-size: 0.8rem; background: linear-gradient(135deg, #4f46e5, #818cf8);"
+               th:text="${#strings.substring(docente.nombre,0,1) + #strings.substring(docente.apellidos,0,1)}">JD</div>
+          <div>
+            <div class="fw-bold text-dark" style="font-size: 0.85rem;"
+                 th:text="${docente.apellidos + ', ' + docente.nombre}">Nombre</div>
+            <div class="d-flex gap-2 align-items-center flex-wrap" style="font-size: 0.72rem;">
+              <span th:if="${docente.departamento != null}" class="text-muted"
+                    th:text="${docente.departamento.codigo}">IFC</span>
+              <span th:if="${docente.rol != null}" class="badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill px-2"
+                    style="font-size: 0.65rem;"
+                    th:text="${docente.rol.nombre}">Profesor</span>
+            </div>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button class="btn btn-light btn-sm rounded-circle" type="button" data-bs-toggle="dropdown">
+            <i class="bi bi-three-dots-vertical text-muted"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end border shadow-sm">
+            <li><a class="dropdown-item small py-2" th:href="@{'/web/docentes/' + ${docente.id}}"><i class="bi bi-eye me-2 text-primary"></i> Ver</a></li>
+            <li><a class="dropdown-item small py-2" th:href="@{'/web/docentes/editar/' + ${docente.id}}"><i class="bi bi-pencil me-2 text-warning"></i> Editar</a></li>
+            <li>
+              <form th:action="@{'/web/docentes/eliminar/' + ${docente.id}}" method="post" style="display:inline;"
+                    onsubmit="return confirm('¿Eliminar?');">
+                <button type="submit" class="dropdown-item small py-2 text-danger"><i class="bi bi-trash me-2"></i> Eliminar</button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div th:if="${#lists.isEmpty(listaDocentes)}" class="text-center py-5 text-muted">
+      <i class="bi bi-people fs-1 opacity-25 d-block mb-2"></i>
+      <p class="small">No hay docentes registrados.</p>
+    </div>
+
+    <div th:unless="${#lists.isEmpty(listaDocentes)}" class="text-center mt-2">
+      <small class="text-muted"><span th:text="${#lists.size(listaDocentes)}">0</span> docentes</small>
     </div>
   </div>
 

@@ -35,17 +35,17 @@
             <div class="d-flex align-items-center">
               <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold me-3"
                    style="width: 35px; height: 35px; font-size: 0.8rem;"
-                   th:text="${#strings.substring(solicitud.docente.nombre,0,1) + #strings.substring(solicitud.docente.apellidos,0,1)}">JD</div>
+                   th:text="${solicitud.docente != null ? #strings.substring(solicitud.docente.nombre,0,1) + #strings.substring(solicitud.docente.apellidos,0,1) : '??'}">JD</div>
               <div>
-                <div class="fw-bold text-dark" th:text="${solicitud.docente.nombre} + ' ' + ${solicitud.docente.apellidos}">Nombre</div>
-                <div class="small text-muted" th:text="${solicitud.docente.email}">email@educastur.org</div>
+                <div class="fw-bold text-dark" th:text="${solicitud.docente != null ? solicitud.docente.nombre + ' ' + solicitud.docente.apellidos : 'Desconocido'}">Nombre</div>
+                <div class="small text-muted" th:text="${solicitud.docente != null ? solicitud.docente.email : '—'}">email@educastur.org</div>
               </div>
             </div>
           </td>
 
           <td>
                             <span class="badge bg-light text-secondary border fw-normal"
-                                  th:text="${solicitud.docente.departamento.codigo}">DEP</span>
+                                  th:text="${solicitud.docente.departamento != null ? solicitud.docente.departamento.codigo : '—'}">DEP</span>
           </td>
 
           <td class="fw-bold text-dark">
@@ -70,15 +70,17 @@
           </td>
 
           <td class="pe-4 text-end">
-            <div th:if="${solicitud.aprobado == null}">
-              <a th:href="@{'/web/admin/accion/' + ${solicitud.id} + '/true'}"
-                 class="btn btn-success btn-sm rounded-circle shadow-sm me-1" title="Aprobar">
-                <i class="bi bi-check-lg"></i>
-              </a>
-              <a th:href="@{'/web/admin/accion/' + ${solicitud.id} + '/false'}"
-                 class="btn btn-danger btn-sm rounded-circle shadow-sm" title="Rechazar">
-                <i class="bi bi-x-lg"></i>
-              </a>
+            <div th:if="${solicitud.aprobado == null}" class="d-flex gap-1 justify-content-end">
+              <form th:action="@{'/web/admin/accion/' + ${solicitud.id} + '/true'}" method="post" style="display:inline;">
+                <button type="submit" class="btn btn-success btn-sm rounded-circle shadow-sm" title="Aprobar">
+                  <i class="bi bi-check-lg"></i>
+                </button>
+              </form>
+              <form th:action="@{'/web/admin/accion/' + ${solicitud.id} + '/false'}" method="post" style="display:inline;">
+                <button type="submit" class="btn btn-danger btn-sm rounded-circle shadow-sm" title="Rechazar">
+                  <i class="bi bi-x-lg"></i>
+                </button>
+              </form>
             </div>
             <div th:unless="${solicitud.aprobado == null}" class="text-muted small">
               <i class="bi bi-lock-fill"></i> Cerrado

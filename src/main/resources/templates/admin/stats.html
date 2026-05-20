@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(~{::section})}">
+<head></head>
+<body>
+<section>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold m-0"><i class="bi bi-bar-chart-line me-2"></i>Panel de Estadísticas</h4>
+            <p class="text-muted small m-0">Indicadores globales del sistema — solo visible para Dirección.</p>
+        </div>
+    </div>
+
+    <!-- FILA DE TARJETAS PRINCIPALES -->
+    <div class="row g-3 g-lg-4 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-4">
+                    <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-3" style="width: 56px; height: 56px;">
+                        <i class="bi bi-people-fill text-primary fs-4"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1" th:text="${totalDocentes}">0</h2>
+                    <p class="text-muted small mb-0">Total Docentes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-3 py-lg-4">
+                    <div class="rounded-circle bg-success bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2 mb-lg-3" style="width: 48px; height: 48px;">
+                        <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1 text-success" th:text="${aprobadas}">0</h2>
+                    <p class="text-muted small mb-0">Aprobadas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-3 py-lg-4">
+                    <div class="rounded-circle bg-warning bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2 mb-lg-3" style="width: 48px; height: 48px;">
+                        <i class="bi bi-hourglass-split text-warning fs-5"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1 text-warning" th:text="${pendientesCount}">0</h2>
+                    <p class="text-muted small mb-0">Solicitudes Pendientes</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center py-3 py-lg-4">
+                    <div class="rounded-circle bg-danger bg-opacity-10 d-inline-flex align-items-center justify-content-center mb-2 mb-lg-3" style="width: 48px; height: 48px;">
+                        <i class="bi bi-x-circle-fill text-danger fs-5"></i>
+                    </div>
+                    <h2 class="fw-bold mb-1 text-danger" th:text="${rechazadas}">0</h2>
+                    <p class="text-muted small mb-0">Solicitudes Rechazadas</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILA SECUNDARIA -->
+    <div class="row g-3 g-lg-4 mb-4">
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-building me-2"></i>Docentes por Departamento</h6>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-2 small text-muted text-uppercase fw-bold">Departamento</th>
+                            <th class="py-2 small text-muted text-uppercase fw-bold text-center">Docentes</th>
+                            <th class="pe-4 py-2 small text-muted text-uppercase fw-bold text-end">%</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="entry : ${docentesPorDepto}">
+                            <td class="ps-4 py-2">
+                                <span class="fw-medium" th:text="${entry.key}">Departamento</span>
+                            </td>
+                            <td class="text-center py-2">
+                                <span class="badge bg-primary-subtle text-primary rounded-pill px-3" th:text="${entry.value}">0</span>
+                            </td>
+                            <td class="pe-4 text-end py-2">
+                                <span class="small text-muted" th:text="${totalDocentes > 0 ? #numbers.formatDecimal(entry.value * 100.0 / totalDocentes, 1, 1) + '%' : '0%'}">0%</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;"><i class="bi bi-trophy me-2"></i>Ranking de Guardias</h6>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4 py-2 small text-muted text-uppercase fw-bold">#</th>
+                            <th class="py-2 small text-muted text-uppercase fw-bold">Docente</th>
+                            <th class="pe-4 py-2 small text-muted text-uppercase fw-bold text-end">Guardias</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="doc, iter : ${topGuardias}">
+                            <td class="ps-4 py-2">
+                                <span class="badge rounded-circle bg-warning text-dark" th:if="${iter.index == 0}">1</span>
+                                <span class="badge rounded-circle bg-secondary bg-opacity-25 text-dark" th:unless="${iter.index == 0}" th:text="${iter.index + 1}">2</span>
+                            </td>
+                            <td class="py-2">
+                                <div class="fw-medium" th:text="${doc.nombre + ' ' + doc.apellidos}">Nombre</div>
+                                <div class="small text-muted" th:text="${doc.departamento != null ? doc.departamento.nombre : '—'}">Depto</div>
+                            </td>
+                            <td class="pe-4 text-end py-2">
+                                <span class="badge bg-success-subtle text-success rounded-pill px-3 fs-6" th:text="${doc.guardiasRealizadas != null ? doc.guardiasRealizadas : 0}">0</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DOCENTE CON MÁS DÍAS DISFRUTADOS -->
+    <div class="row g-3 g-lg-4">
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-person-badge me-2"></i>Docente con Más Días Disfrutados</h6>
+                </div>
+                <div class="card-body" th:if="${masDisfruton != null}">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold" style="width: 50px; height: 50px; font-size: 1rem;"
+                             th:text="${masDisfruton.siglas != null ? masDisfruton.siglas : '??'}">AD</div>
+                        <div>
+                            <div class="fw-bold" th:text="${masDisfruton.nombre + ' ' + masDisfruton.apellidos}">Nombre</div>
+                            <div class="small text-muted" th:text="${masDisfruton.departamento != null ? masDisfruton.departamento.nombre : '—'}">Depto</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body text-muted" th:unless="${masDisfruton != null}">
+                    <i class="bi bi-info-circle me-1"></i> No hay datos suficientes aún.
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0" style="font-size: 0.9rem;"><i class="bi bi-pie-chart me-2"></i>Tipo de Funcionario</h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-around text-center">
+                        <div>
+                            <h4 class="fw-bold text-primary mb-0" th:text="${carrera}">0</h4>
+                            <small class="text-muted">Carrera</small>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold text-info mb-0" th:text="${practicas}">0</h4>
+                            <small class="text-muted">Prácticas</small>
+                        </div>
+                        <div>
+                            <h4 class="fw-bold text-secondary mb-0" th:text="${interinos}">0</h4>
+                            <small class="text-muted">Interinos</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</section>
+</body>
+</html>

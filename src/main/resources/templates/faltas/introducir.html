@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(~{::section})}">
+<head></head>
+<body>
+<section>
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold m-0"><i class="bi bi-clipboard-x me-2"></i>Introducir Faltas</h4>
+            <p class="text-muted small m-0">Registra las ausencias de los docentes en sus franjas horarias.</p>
+        </div>
+    </div>
+
+    <!-- MENSAJES FLASH -->
+    <div th:if="${param.guardado}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i> Falta registrada correctamente.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${param.eliminado}" class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="bi bi-trash me-2"></i> Registro de falta eliminado.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div th:if="${param.error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle me-2"></i> Error: el docente no tiene horario asignado en esa franja.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="row g-3 g-lg-4">
+        <!-- FORMULARIO -->
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-plus-circle me-2"></i>Registrar Nueva Falta</h6>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/web/faltas/guardar}" method="post">
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Docente Ausente</label>
+                            <select name="docenteId" class="form-select" required>
+                                <option value="">— Seleccionar docente —</option>
+                                <option th:each="d : ${docentes}" th:value="${d.id}"
+                                        th:text="${d.apellidos + ', ' + d.nombre}">Docente</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Fecha de la ausencia</label>
+                            <input type="date" name="fecha" class="form-control" required>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-medium">Día de la semana</label>
+                                <select name="dia" class="form-select" required>
+                                    <option value="1">Lunes</option>
+                                    <option value="2">Martes</option>
+                                    <option value="3">Miércoles</option>
+                                    <option value="4">Jueves</option>
+                                    <option value="5">Viernes</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-medium">Hora</label>
+                                <select name="hora" class="form-select" required>
+                                    <option value="1">1ª hora</option>
+                                    <option value="2">2ª hora</option>
+                                    <option value="3">3ª hora</option>
+                                    <option value="4">4ª hora</option>
+                                    <option value="5">5ª hora</option>
+                                    <option value="6">6ª hora</option>
+                                    <option value="7">7ª hora</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Anotación</label>
+                            <textarea name="anotacion" class="form-control" rows="2" placeholder="Ej: Se realizó la guardia con normalidad"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-medium">Material dejado por el docente</label>
+                            <input type="text" name="material" class="form-control" placeholder="Ej: Ejercicios tema 5, página 32">
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-save me-2"></i> Registrar Falta
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- LISTADO DE FALTAS RECIENTES -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h6 class="fw-bold mb-0"><i class="bi bi-list-ul me-2"></i>Faltas Registradas</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div th:if="${#lists.isEmpty(faltas)}" class="text-center py-5">
+                        <i class="bi bi-clipboard-check fs-1 text-muted opacity-25"></i>
+                        <p class="text-muted mt-2 mb-0">No hay faltas registradas todavía.</p>
+                    </div>
+                    <div th:unless="${#lists.isEmpty(faltas)}" class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4 py-2 small text-muted text-uppercase fw-bold">Docente</th>
+                                <th class="py-2 small text-muted text-uppercase fw-bold">Fecha</th>
+                                <th class="py-2 small text-muted text-uppercase fw-bold">Hora</th>
+                                <th class="py-2 small text-muted text-uppercase fw-bold">Asignatura</th>
+                                <th class="py-2 small text-muted text-uppercase fw-bold">Sustituto</th>
+                                <th class="py-2 small text-muted text-uppercase fw-bold">Guardia</th>
+                                <th class="py-2 small text-muted text-uppercase fw-bold">Anotación</th>
+                                <th class="pe-4 py-2 small text-muted text-uppercase fw-bold text-end">Acción</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="f : ${faltas}">
+                                <td class="ps-4">
+                                    <div class="fw-medium small" th:text="${f.horario != null and f.horario.docente != null ? f.horario.docente.apellidos + ', ' + f.horario.docente.nombre : '—'}">Docente</div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle" th:text="${f.fecha}">2026-01-01</span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary-subtle text-primary" th:text="${f.horario != null ? f.horario.hora + 'ª' : '—'}">1ª</span>
+                                </td>
+                                <td class="small" th:text="${f.horario != null and f.horario.asignatura != null ? f.horario.asignatura.siglas : '—'}">PRG</td>
+                                <td class="small">
+                                    <span th:if="${f.sustituto != null}" class="text-success fw-medium"
+                                          th:text="${f.sustituto.apellidos + ', ' + f.sustituto.nombre}">Sustituto</span>
+                                    <span th:unless="${f.sustituto != null}" class="text-muted">Sin asignar</span>
+                                </td>
+                                <td>
+                                    <!-- Estado de la guardia: realizada / no realizada / pendiente -->
+                                    <span th:if="${f.realizada == null}" class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                                        <i class="bi bi-clock me-1"></i>Pendiente
+                                    </span>
+                                    <span th:if="${f.realizada == true}" class="badge bg-success-subtle text-success border border-success-subtle">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Realizada
+                                    </span>
+                                    <span th:if="${f.realizada == false}" class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                        <i class="bi bi-x-circle-fill me-1"></i>No realizada
+                                    </span>
+                                </td>
+                                <td class="small text-muted" th:text="${f.anotacion != null ? f.anotacion : '—'}">—</td>
+                                <td class="pe-4 text-end">
+                                    <div class="d-flex gap-0">
+                                        <form th:action="@{'/web/faltas/marcar/' + ${f.id} + '/true'}" method="post" style="display:inline;">
+                                            <button type="submit" class="btn btn-outline-success btn-sm"
+                                                    th:classappend="${f.realizada == true} ? 'active'" title="Marcar como realizada">
+                                                <i class="bi bi-check-lg"></i>
+                                            </button>
+                                        </form>
+                                        <form th:action="@{'/web/faltas/marcar/' + ${f.id} + '/false'}" method="post" style="display:inline;">
+                                            <button type="submit" class="btn btn-outline-warning btn-sm"
+                                                    th:classappend="${f.realizada == false} ? 'active'" title="Marcar como no realizada">
+                                                <i class="bi bi-x-lg"></i>
+                                            </button>
+                                        </form>
+                                        <form th:action="@{'/web/faltas/eliminar/' + ${f.id}}" method="post" style="display:inline;"
+                                              onsubmit="return confirm('¿Eliminar este registro de falta?');">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</section>
+</body>
+</html>

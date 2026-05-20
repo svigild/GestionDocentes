@@ -12,11 +12,16 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Controller
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired private DocenteRepository docenteRepo;
     @Autowired private TokenRepository tokenRepo;
@@ -61,8 +66,8 @@ public class AuthController {
                     "http://localhost:8080/auth/reset-password?token=" + token);
             mailSender.send(message);
         } catch (Exception e) {
-            System.out.println("ERROR ENVIANDO EMAIL (Fallo SMTP): " + e.getMessage());
-            System.out.println("LINK SIMULADO PARA TESTING: http://localhost:8080/auth/reset-password?token=" + token);
+            log.warn("No se pudo enviar email de recuperación a {}: {}", email, e.getMessage());
+            log.info("Link de recuperación (desarrollo): http://localhost:8080/auth/reset-password?token={}", token);
         }
 
         model.addAttribute("message", "Se ha enviado un enlace a tu correo.");

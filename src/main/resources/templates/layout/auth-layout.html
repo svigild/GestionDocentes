@@ -26,11 +26,14 @@
         .auth-card {
             background-color: #ffffff;
             border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15); /* Sombra suave */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
             border: none;
             width: 100%;
-            max-width: 420px; /* Ancho similar al de la imagen */
-            padding: 2.5rem 2rem;
+            max-width: 420px;
+            padding: 1.5rem 1.25rem;
+        }
+        @media (min-width: 576px) {
+            .auth-card { padding: 2.5rem 2rem; }
         }
 
         .auth-logo {

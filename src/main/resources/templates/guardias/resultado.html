@@ -13,13 +13,13 @@
         </div>
     </div>
 
-    <div class="row justify-content-center mt-5">
-        <div class="col-md-10">
+    <div class="row justify-content-center mt-3 mt-md-5">
+        <div class="col-12 col-lg-10">
             <div class="card border-0 shadow-lg overflow-hidden">
                 <div class="card-body p-0">
                     <div class="row g-0">
 
-                        <div class="col-md-5 bg-light text-center p-5 border-end">
+                        <div class="col-12 col-md-5 bg-light text-center p-3 p-md-5 border-end">
                             <div class="mb-3">
                                 <div class="avatar mx-auto bg-danger text-white fs-2 rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px;">
                                     <span th:text="${ausente.siglas}">AU</span>
@@ -28,7 +28,7 @@
                             <h5 class="fw-bold text-danger mb-1">Docente Ausente</h5>
                             <h4 class="mb-1" th:text="${ausente.nombre} + ' ' + ${ausente.apellidos}">Nombre Ausente</h4>
                             <span class="badge bg-white text-muted border border-secondary-subtle rounded-pill px-3">
-                                <i class="bi bi-building"></i> <span th:text="${ausente.departamento.nombre}">Depto</span>
+                                <i class="bi bi-building"></i> <span th:text="${ausente.departamento != null ? ausente.departamento.nombre : '—'}">Depto</span>
                             </span>
                         </div>
 
@@ -40,7 +40,7 @@
                             <div class="border-top border-2 w-100 position-absolute d-none d-md-block" style="top: 50%; z-index: 1;"></div>
                         </div>
 
-                        <div class="col-md-5 bg-success bg-opacity-10 text-center p-5">
+                        <div class="col-12 col-md-5 bg-success bg-opacity-10 text-center p-3 p-md-5">
                             <div th:if="${sustituto != null}">
                                 <div class="mb-3">
                                     <div class="avatar mx-auto bg-success text-white fs-2 rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 80px; height: 80px;">
@@ -50,7 +50,7 @@
                                 <h5 class="fw-bold text-success mb-1">Sustituto Asignado</h5>
                                 <h4 class="mb-1" th:text="${sustituto.nombre} + ' ' + ${sustituto.apellidos}">Nombre Sustituto</h4>
                                 <p class="text-muted small mb-2">
-                                    <i class="bi bi-building"></i> <span th:text="${sustituto.departamento.nombre}">Depto</span>
+                                    <i class="bi bi-building"></i> <span th:text="${sustituto.departamento != null ? sustituto.departamento.nombre : '—'}">Depto</span>
                                 </p>
                                 <div class="alert alert-success d-inline-block py-1 px-3 small m-0 border-success border-opacity-25">
                                     <i class="bi bi-check-circle-fill me-1"></i> Carga Baja: <strong th:text="${sustituto.guardiasRealizadas}">0</strong> Guardias
@@ -68,6 +68,9 @@
                 </div>
 
                 <div class="card-footer bg-white p-4 text-center border-top">
+                    <div th:if="${criterio != null}" class="alert alert-info d-inline-block py-2 px-4 small mb-3 border-info border-opacity-25">
+                        <i class="bi bi-info-circle-fill me-1"></i> <strong>Criterio aplicado:</strong> <span th:text="${criterio}">criterio</span>
+                    </div>
                     <p class="mb-3 text-muted">Se ha actualizado automáticamente el contador de guardias del sustituto.</p>
                     <a href="/web/guardias/panel" class="btn btn-dark px-4 fw-medium">
                         <i class="bi bi-check-lg me-2"></i> Confirmar y Volver

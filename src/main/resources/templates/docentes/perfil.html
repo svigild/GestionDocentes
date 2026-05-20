@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main :: layout(~{::section})}">
+<head>
+    <title>Perfil Docente</title>
+</head>
+<body>
+
+<section>
+    <style>
+        .profile-header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            border-radius: 12px;
+            padding: 1.25rem;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        @media (min-width: 768px) {
+            .profile-header { padding: 2rem; border-radius: 16px; }
+        }
+
+        .profile-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+
+        .profile-avatar {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.2);
+            border: 3px solid rgba(255,255,255,0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+
+        .profile-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            height: 100%;
+        }
+
+        .info-card .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .info-card .value {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .horario-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 4px;
+        }
+
+        .horario-table th {
+            background: #4f46e5;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 8px;
+        }
+
+        .horario-table td {
+            background: #f8fafc;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            min-width: 80px;
+        }
+
+        .horario-table td.has-class {
+            background: #e0e7ff;
+            color: #4f46e5;
+            font-weight: 700;
+        }
+
+        .horario-table td.has-class:hover {
+            background: #c7d2fe;
+            transform: scale(1.02);
+        }
+
+        .horario-table td .aula {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            display: block;
+            margin-top: 2px;
+        }
+
+        .horario-table td.empty {
+            color: #cbd5e1;
+        }
+
+        .solicitud-row {
+            transition: all 0.2s;
+        }
+
+        .solicitud-row:hover {
+            background: #f8fafc;
+        }
+
+        .badge-aprobada {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .badge-rechazada {
+            background: #fef2f2;
+            color: #dc2626;
+        }
+
+        .badge-pendiente {
+            background: #fef9c3;
+            color: #ca8a04;
+        }
+
+        .section-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #1e293b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .section-title i {
+            color: #4f46e5;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: white;
+            opacity: 0.8;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: opacity 0.2s;
+        }
+
+        .back-btn:hover {
+            opacity: 1;
+            color: white;
+        }
+
+        .tipo-badge {
+            font-size: 0.75rem;
+            padding: 3px 10px;
+            border-radius: 50px;
+            font-weight: 600;
+        }
+    </style>
+
+    <!-- CABECERA DEL PERFIL -->
+    <div class="profile-header">
+        <div class="d-flex justify-content-between align-items-start mb-3">
+            <a href="/web/docentes" class="back-btn">
+                <i class="bi bi-arrow-left"></i> Volver al claustro
+            </a>
+        </div>
+
+        <div class="d-flex align-items-center gap-3 gap-md-4 flex-wrap">
+            <div class="profile-avatar"
+                 th:text="${docente.siglas != null ? docente.siglas : 'NN'}">SV</div>
+
+            <div>
+                <h2 class="fw-bold mb-1" style="font-size: clamp(1.1rem, 3vw, 1.5rem);" th:text="${docente.nombre + ' ' + docente.apellidos}">Nombre Apellidos</h2>
+
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="profile-badge" th:text="${docente.rol != null ? docente.rol.nombre : 'Sin rol'}">Rol</span>
+                    <span class="profile-badge" th:text="${docente.departamento != null ? docente.departamento.nombre : 'Sin departamento'}">Departamento</span>
+
+                    <span class="profile-badge"
+                          th:if="${docente.tipoFuncionario != null}"
+                          th:text="${docente.tipoFuncionario == 1 ? 'Funcionario de Carrera' : (docente.tipoFuncionario == 2 ? 'Funcionario en Prácticas' : 'Interino')}">
+                        Tipo
+                    </span>
+                </div>
+
+                <div style="opacity: 0.8; font-size: 0.9rem;">
+                    <i class="bi bi-envelope me-1"></i>
+                    <span th:text="${docente.email}">email@ejemplo.com</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TARJETAS DE ESTADISTICAS -->
+    <div class="row g-2 g-md-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-number text-primary" style="font-size: clamp(1.5rem, 4vw, 2rem);" th:text="${docente.guardiasRealizadas != null ? docente.guardiasRealizadas : 0}">0</div>
+                <div class="stat-label">Guardias</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-number" style="color: #16a34a; font-size: clamp(1.5rem, 4vw, 2rem);" th:text="${aprobadas}">0</div>
+                <div class="stat-label">Aprobadas</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-number" style="color: #ca8a04; font-size: clamp(1.5rem, 4vw, 2rem);" th:text="${pendientes}">0</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="stat-card">
+                <div class="stat-number" style="color: #dc2626; font-size: clamp(1.5rem, 4vw, 2rem);" th:text="${rechazadas}">0</div>
+                <div class="stat-label">Rechazadas</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- INFORMACION DETALLADA + HORARIO -->
+    <div class="row g-3 g-lg-4 mb-4">
+        <!-- INFO PERSONAL -->
+        <div class="col-12 col-lg-4">
+            <div class="info-card">
+                <div class="section-title">
+                    <i class="bi bi-person-vcard"></i> Datos personales
+                </div>
+
+                <div class="mb-3">
+                    <div class="label">Nombre completo</div>
+                    <div class="value" th:text="${docente.nombre + ' ' + docente.apellidos}">—</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="label">Siglas</div>
+                    <div class="value" th:text="${docente.siglas ?: '—'}">—</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="label">Correo electrónico</div>
+                    <div class="value" th:text="${docente.email ?: '—'}">—</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="label">Departamento</div>
+                    <div class="value" th:text="${docente.departamento != null ? docente.departamento.nombre : '—'}">—</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="label">Rol</div>
+                    <div class="value" th:text="${docente.rol != null ? docente.rol.nombre : '—'}">—</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="label">Tipo de funcionario</div>
+                    <div class="value"
+                         th:text="${docente.tipoFuncionario == 1 ? 'Funcionario de Carrera' : (docente.tipoFuncionario == 2 ? 'Funcionario en Prácticas' : (docente.tipoFuncionario == 3 ? 'Interino' : '—'))}">—</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="label">Fecha de antigüedad</div>
+                    <div class="value" th:text="${docente.fechaAntiguedad != null ? #temporals.format(docente.fechaAntiguedad, 'dd/MM/yyyy') : '—'}">—</div>
+                </div>
+
+                <div>
+                    <div class="label">Nota de oposición</div>
+                    <div class="value" th:text="${docente.notaOposicion != null ? docente.notaOposicion : '—'}">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- HORARIO SEMANAL -->
+        <div class="col-12 col-lg-8">
+            <div class="info-card">
+                <div class="section-title">
+                    <i class="bi bi-calendar3"></i> Horario semanal
+                </div>
+
+                <div class="table-responsive">
+                    <table class="horario-table">
+                        <thead>
+                        <tr>
+                            <th style="background: #334155;">Hora</th>
+                            <th>Lunes</th>
+                            <th>Martes</th>
+                            <th>Miércoles</th>
+                            <th>Jueves</th>
+                            <th>Viernes</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="hora : ${#numbers.sequence(0, 6)}">
+                            <td style="background: #334155; color: white; font-weight: 700; font-size: 0.8rem;"
+                                th:text="${hora + 1} + 'ª'">1ª</td>
+
+                            <td th:each="dia : ${#numbers.sequence(0, 4)}"
+                                th:classappend="${matrizHorario[hora][dia] != null ? 'has-class' : 'empty'}">
+
+                                <span th:if="${matrizHorario[hora][dia] != null}"
+                                      th:text="${matrizHorario[hora][dia]}">ASI</span>
+                                <span th:if="${matrizHorario[hora][dia] != null && matrizAula[hora][dia] != null && !matrizAula[hora][dia].isEmpty()}"
+                                      class="aula"
+                                      th:text="${matrizAula[hora][dia]}">A01</span>
+
+                                <span th:if="${matrizHorario[hora][dia] == null}">—</span>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORIAL DE SOLICITUDES -->
+    <div class="info-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="section-title mb-0">
+                <i class="bi bi-file-earmark-text"></i> Historial de solicitudes
+            </div>
+            <span class="text-muted" style="font-size: 0.85rem;"
+                  th:text="${#lists.size(solicitudes)} + ' solicitudes en total'">0 solicitudes</span>
+        </div>
+
+        <!-- SI NO HAY SOLICITUDES -->
+        <div th:if="${#lists.isEmpty(solicitudes)}" class="text-center py-5">
+            <i class="bi bi-inbox" style="font-size: 3rem; color: #cbd5e1;"></i>
+            <p class="text-muted mt-2">Este docente no tiene solicitudes registradas</p>
+        </div>
+
+        <!-- TABLA DE SOLICITUDES -->
+        <div th:if="${!#lists.isEmpty(solicitudes)}" class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                <tr style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: #94a3b8;">
+                    <th class="border-0">Fecha solicitada</th>
+                    <th class="border-0">Descripción</th>
+                    <th class="border-0">Tramitación</th>
+                    <th class="border-0">Sustituto</th>
+                    <th class="border-0 text-center">Estado</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="sol : ${solicitudes}" class="solicitud-row">
+                    <td>
+                        <div class="fw-bold" th:text="${#temporals.format(sol.diaSolicitado, 'dd/MM/yyyy')}">01/01/2025</div>
+                        <small class="text-muted" th:text="${#temporals.dayOfWeekName(sol.diaSolicitado)}">Lunes</small>
+                    </td>
+                    <td>
+                        <span th:text="${sol.descripcion != null && !sol.descripcion.isEmpty() ? sol.descripcion : 'Asunto propio'}">Descripción</span>
+                    </td>
+                    <td>
+                        <small class="text-muted"
+                               th:text="${sol.fechaTramitacion != null ? #temporals.format(sol.fechaTramitacion, 'dd/MM/yyyy HH:mm') : '—'}">—</small>
+                    </td>
+                    <td>
+                        <span th:if="${sol.sustituto != null}" th:text="${sol.sustituto.nombre + ' ' + sol.sustituto.apellidos}">—</span>
+                        <span th:if="${sol.sustituto == null}" class="text-muted">Sin asignar</span>
+                    </td>
+                    <td class="text-center">
+                            <span class="badge rounded-pill"
+                                  th:classappend="${sol.aprobado == null ? 'badge-pendiente' : (sol.aprobado ? 'badge-aprobada' : 'badge-rechazada')}"
+                                  th:text="${sol.aprobado == null ? 'Pendiente' : (sol.aprobado ? 'Aprobada' : 'Rechazada')}">
+                                Estado
+                            </span>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</section>
+
+</body>
+</html>
