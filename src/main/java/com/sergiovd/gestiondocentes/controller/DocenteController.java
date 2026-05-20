@@ -5,13 +5,12 @@ import com.sergiovd.gestiondocentes.model.*;
 import com.sergiovd.gestiondocentes.repository.*;
 import com.sergiovd.gestiondocentes.service.DocenteService;
 import com.sergiovd.gestiondocentes.service.GuardiaService;
+import com.sergiovd.gestiondocentes.service.MailService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -49,7 +48,7 @@ public class DocenteController {
     @Autowired private DocenteRepository docenteRepo;
     @Autowired private AsuntoPropioRepository asuntoRepo;
     @Autowired private GuardiaService guardiaService;
-    @Autowired(required = false) private JavaMailSender mailSender;
+    @Autowired private MailService mailService;
     @Autowired private DepartamentoRepository deptRepo;
     @Autowired private RolRepository rolRepo;
     @Autowired private PasswordEncoder passwordEncoder;
@@ -377,25 +376,17 @@ public class DocenteController {
             asuntoRepo.save(ap);
 
             // Notificación por email al docente con el resultado de la solicitud
-            if (mailSender != null) {
-                try {
-                    SimpleMailMessage msg = new SimpleMailMessage();
-                    msg.setFrom(mailFrom);
-                    msg.setTo(ap.getDocente().getEmail());
-                    msg.setSubject("Resolución de su solicitud de asuntos propios — GestiónDocentes");
-                    String cuerpo = "Hola " + ap.getDocente().getNombre() + ",\n\n"
-                            + "Su solicitud de día de asuntos propios para el "
-                            + ap.getDiaSolicitado()
-                            + " ha sido " + (estado ? "APROBADA" : "DENEGADA") + ".\n\n"
-                            + "Puede consultar el detalle accediendo a: " + baseUrl + "/\n\n"
-                            + "Un saludo,\nEquipo de GestiónDocentes";
-                    msg.setText(cuerpo);
-                    mailSender.send(msg);
-                    log.info("Notificación de {} enviada a {}", estado ? "aprobación" : "rechazo", ap.getDocente().getEmail());
-                } catch (Exception e) {
-                    log.warn("Fallo al enviar email de notificación a {}: {}", ap.getDocente().getEmail(), e.getMessage());
-                }
-            }
+            String cuerpo = "Hola " + ap.getDocente().getNombre() + ",\n\n"
+                    + "Su solicitud de día de asuntos propios para el "
+                    + ap.getDiaSolicitado()
+                    + " ha sido " + (estado ? "APROBADA" : "DENEGADA") + ".\n\n"
+                    + "Puede consultar el detalle accediendo a: " + baseUrl + "/\n\n"
+                    + "Un saludo,\nEquipo de GestiónDocentes";
+            mailService.send(
+                    ap.getDocente().getEmail(),
+                    ap.getDocente().getNombre() + " " + ap.getDocente().getApellidos(),
+                    "Resolución de su solicitud de asuntos propios — GestiónDocentes",
+                    cuerpo);
         }
         return "redirect:/web/admin/validar";
     }
@@ -611,24 +602,18 @@ public class DocenteController {
         docenteRepo.save(docente);
 
         // Envío las credenciales por correo
-        if (mailSender != null) {
-            try {
-                SimpleMailMessage msg = new SimpleMailMessage();
-                msg.setFrom(mailFrom);
-                msg.setTo(docente.getEmail());
-                msg.setSubject("Credenciales de acceso — GestiónDocentes");
-                msg.setText("Hola " + docente.getNombre() + " " + docente.getApellidos() + ",\n\n"
-                        + "Se ha creado una cuenta para usted en GestiónDocentes.\n\n"
-                        + "Usuario: " + docente.getEmail() + "\n"
-                        + "Contraseña temporal: " + passTemporal + "\n\n"
-                        + "IMPORTANTE: La primera vez que acceda, el sistema le pedirá que cambie esta contraseña.\n\n"
-                        + "Acceda en: " + baseUrl + "/login\n\n"
-                        + "Un saludo,\nEquipo de GestiónDocentes");
-                mailSender.send(msg);
-            } catch (Exception e) {
-                log.warn("Error enviando email de credenciales: {}", e.getMessage());
-            }
-        }
+        String cuerpo = "Hola " + docente.getNombre() + " " + docente.getApellidos() + ",\n\n"
+                + "Se ha creado una cuenta para usted en GestiónDocentes.\n\n"
+                + "Usuario: " + docente.getEmail() + "\n"
+                + "Contraseña temporal: " + passTemporal + "\n\n"
+                + "IMPORTANTE: La primera vez que acceda, el sistema le pedirá que cambie esta contraseña.\n\n"
+                + "Acceda en: " + baseUrl + "/login\n\n"
+                + "Un saludo,\nEquipo de GestiónDocentes";
+        mailService.send(
+                docente.getEmail(),
+                docente.getNombre() + " " + docente.getApellidos(),
+                "Credenciales de acceso — GestiónDocentes",
+                cuerpo);
 
         return "redirect:/web/docentes?creado=true";
     }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +36,17 @@ public class GlobalExceptionHandler {
         log.warn("Intento de subida de archivo que excede el tamaño máximo: {}", ex.getMessage());
         model.addAttribute("error", "El archivo supera el tamaño máximo permitido (10 MB).");
         return "error/500";
+    }
+
+    /**
+     * Captura los 404 de recursos estáticos (imágenes, css, js no encontrados)
+     * y devuelve la página de error 404 sin contaminar los logs con stack traces de 500.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public String handleNoResource(NoResourceFoundException ex) {
+        log.debug("Recurso estático no encontrado: {}", ex.getResourcePath());
+        return "error/404";
     }
 
     /**

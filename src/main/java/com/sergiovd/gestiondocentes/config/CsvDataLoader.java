@@ -2,12 +2,11 @@ package com.sergiovd.gestiondocentes.config;
 
 import com.sergiovd.gestiondocentes.model.*;
 import com.sergiovd.gestiondocentes.repository.*;
+import com.sergiovd.gestiondocentes.service.MailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import org.slf4j.Logger;
@@ -32,10 +31,7 @@ public class CsvDataLoader implements CommandLineRunner {
     @Autowired private CicloRepository cicloRepo;
     @Autowired private AsignaturaRepository asignaturaRepo;
     @Autowired private HorarioRepository horarioRepo;
-    @Autowired(required = false) private JavaMailSender mailSender;
-
-    @org.springframework.beans.factory.annotation.Value("${app.mail.from:no-reply@gestiondocentes.com}")
-    private String mailFrom;
+    @Autowired private MailService mailService;
 
     @org.springframework.beans.factory.annotation.Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
@@ -112,23 +108,18 @@ public class CsvDataLoader implements CommandLineRunner {
                         // "se le enviará un mail al profesorado con su nombre de usuario y una contraseña temporal").
                         // Por defecto el envio en la carga inicial esta DESACTIVADO para no spamear los emails
                         // de prueba del CSV; se activa con la variable de entorno app.csv.send-emails=true.
-                        if (mailSender != null && enviarEmailsCargaInicial) {
-                            try {
-                                SimpleMailMessage msg = new SimpleMailMessage();
-                                msg.setFrom(mailFrom);
-                                msg.setTo(d.getEmail());
-                                msg.setSubject("Credenciales de acceso — GestiónDocentes");
-                                msg.setText("Hola " + d.getNombre() + " " + d.getApellidos() + ",\n\n"
-                                        + "Se ha creado una cuenta para usted en GestiónDocentes.\n\n"
-                                        + "Usuario: " + d.getEmail() + "\n"
-                                        + "Contraseña temporal: 1234\n\n"
-                                        + "IMPORTANTE: La primera vez que acceda, el sistema le pedirá que cambie esta contraseña.\n\n"
-                                        + "Acceda en: " + baseUrl + "/login\n\n"
-                                        + "Un saludo,\nEquipo de GestiónDocentes");
-                                mailSender.send(msg);
-                            } catch (Exception emailEx) {
-                                log.warn("No se pudo enviar email a {}: {}", d.getEmail(), emailEx.getMessage());
-                            }
+                        if (enviarEmailsCargaInicial) {
+                            String cuerpo = "Hola " + d.getNombre() + " " + d.getApellidos() + ",\n\n"
+                                    + "Se ha creado una cuenta para usted en GestiónDocentes.\n\n"
+                                    + "Usuario: " + d.getEmail() + "\n"
+                                    + "Contraseña temporal: 1234\n\n"
+                                    + "IMPORTANTE: La primera vez que acceda, el sistema le pedirá que cambie esta contraseña.\n\n"
+                                    + "Acceda en: " + baseUrl + "/login\n\n"
+                                    + "Un saludo,\nEquipo de GestiónDocentes";
+                            mailService.send(d.getEmail(),
+                                    d.getNombre() + " " + d.getApellidos(),
+                                    "Credenciales de acceso — GestiónDocentes",
+                                    cuerpo);
                         }
                     }
                     reader.close();

@@ -4,11 +4,10 @@ import com.sergiovd.gestiondocentes.model.Docente;
 import com.sergiovd.gestiondocentes.model.PasswordResetToken;
 import com.sergiovd.gestiondocentes.repository.DocenteRepository;
 import com.sergiovd.gestiondocentes.repository.TokenRepository;
+import com.sergiovd.gestiondocentes.service.MailService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -27,16 +26,12 @@ public class AuthController {
 
     @Autowired private DocenteRepository docenteRepo;
     @Autowired private TokenRepository tokenRepo;
-    @Autowired(required = false) private JavaMailSender mailSender;
+    @Autowired private MailService mailService;
     @Autowired private PasswordEncoder passwordEncoder;
 
     // URL publica de la aplicacion: en local 'http://localhost:8080', en produccion la de Render.
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
-
-    // Direccion remitente que aparecera en el campo 'From' de los correos.
-    @Value("${app.mail.from:no-reply@gestiondocentes.com}")
-    private String mailFrom;
 
     // Mapeo para mostrar la vista personalizada de inicio de sesión
     @GetMapping("/login")
@@ -74,28 +69,23 @@ public class AuthController {
         // Construyo el enlace de recuperación usando la URL publica configurada (no hardcoded localhost).
         String resetLink = baseUrl + "/auth/reset-password?token=" + token;
 
-        // Intento enviar el correo electrónico con el enlace de recuperación.
-        // El try-catch evita que la aplicación se detenga si el servidor SMTP falla.
-        if (mailSender != null) {
-            try {
-                SimpleMailMessage message = new SimpleMailMessage();
-                message.setFrom(mailFrom);
-                message.setTo(docente.getEmail());
-                message.setSubject("Recuperación de contraseña — GestiónDocentes");
-                message.setText("Hola " + docente.getNombre() + ",\n\n"
-                        + "Has solicitado restablecer la contraseña de tu cuenta en GestiónDocentes.\n"
-                        + "Haz clic en el siguiente enlace para establecer una nueva contraseña:\n\n"
-                        + resetLink + "\n\n"
-                        + "Este enlace caducará en 60 minutos. Si no has solicitado este cambio, ignora este mensaje.\n\n"
-                        + "Un saludo,\nEquipo de GestiónDocentes");
-                mailSender.send(message);
-                log.info("Email de recuperación enviado correctamente a {}", email);
-            } catch (Exception e) {
-                log.warn("No se pudo enviar email de recuperación a {}: {}", email, e.getMessage());
-                log.info("Link de recuperación (fallback): {}", resetLink);
-            }
-        } else {
-            log.info("Mail sender no configurado. Link de recuperación: {}", resetLink);
+        String cuerpo = "Hola " + docente.getNombre() + ",\n\n"
+                + "Has solicitado restablecer la contraseña de tu cuenta en GestiónDocentes.\n"
+                + "Haz clic en el siguiente enlace para establecer una nueva contraseña:\n\n"
+                + resetLink + "\n\n"
+                + "Este enlace caducará en 60 minutos. Si no has solicitado este cambio, ignora este mensaje.\n\n"
+                + "Un saludo,\nEquipo de GestiónDocentes";
+
+        boolean enviado = mailService.send(
+                docente.getEmail(),
+                docente.getNombre() + " " + docente.getApellidos(),
+                "Recuperación de contraseña — GestiónDocentes",
+                cuerpo);
+
+        if (!enviado) {
+            // En caso de que el servicio de correo falle, dejo el link en el log
+            // como fallback para entornos de desarrollo sin SMTP.
+            log.info("Link de recuperación (fallback): {}", resetLink);
         }
 
         model.addAttribute("message", "Se ha enviado un enlace a tu correo.");
