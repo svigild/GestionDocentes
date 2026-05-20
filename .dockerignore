@@ -1,7 +1,7 @@
 # Directorios de compilación local
 target/
 
-# IDEs
+# IDEs y editores
 .idea/
 *.iml
 *.iws
@@ -28,3 +28,8 @@ docs/
 *.log
 .DS_Store
 Thumbs.db
+
+# Documentos y diagramas (no necesarios en la imagen)
+diagramas/
+Memoria_*.docx
+Memoria_*.pdf
