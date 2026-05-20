@@ -69,6 +69,10 @@ public class AuthController {
         // Construyo el enlace de recuperación usando la URL publica configurada (no hardcoded localhost).
         String resetLink = baseUrl + "/auth/reset-password?token=" + token;
 
+        // Lo registro siempre en el log para facilitar las pruebas en entornos
+        // donde el destinatario del correo no es accesible directamente.
+        log.info("Link de recuperación para {}: {}", docente.getEmail(), resetLink);
+
         String cuerpo = "Hola " + docente.getNombre() + ",\n\n"
                 + "Has solicitado restablecer la contraseña de tu cuenta en GestiónDocentes.\n"
                 + "Haz clic en el siguiente enlace para establecer una nueva contraseña:\n\n"
@@ -76,17 +80,11 @@ public class AuthController {
                 + "Este enlace caducará en 60 minutos. Si no has solicitado este cambio, ignora este mensaje.\n\n"
                 + "Un saludo,\nEquipo de GestiónDocentes";
 
-        boolean enviado = mailService.send(
+        mailService.send(
                 docente.getEmail(),
                 docente.getNombre() + " " + docente.getApellidos(),
                 "Recuperación de contraseña — GestiónDocentes",
                 cuerpo);
-
-        if (!enviado) {
-            // En caso de que el servicio de correo falle, dejo el link en el log
-            // como fallback para entornos de desarrollo sin SMTP.
-            log.info("Link de recuperación (fallback): {}", resetLink);
-        }
 
         model.addAttribute("message", "Se ha enviado un enlace a tu correo.");
         return "auth/forgot-password";
